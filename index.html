@@ -53,6 +53,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* шапка */
 .appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);display:flex;align-items:center;gap:12px;padding-block:14px 10px;min-height:56px}
 .appbar h1{font-size:28px;line-height:1.1;font-weight:750;letter-spacing:-.03em;margin:0;flex:1;min-width:0;text-wrap:balance}
+.appbar.form h1{font-size:19px;text-align:center}
 .appbar .lnk{background:none;border:0;color:var(--accent);font-size:16px;font-weight:600;padding:6px 2px}
 
 /* вкладки */
@@ -186,6 +187,13 @@ td.num{font-family:var(--font-num)}
 .steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
 .btnrow{display:flex;flex-wrap:wrap;gap:8px}
 
+/* расчёт позиции */
+.pct-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pct-row .chips{gap:6px}
+.pct-row input{width:78px;flex:none;padding:8px}
+.chip.sm{padding:6px 10px;font-size:13.5px}
+.readout .ro-main b{color:var(--accent);font-size:17px}
+.plan-note{font-size:13px;color:var(--muted);margin:0}
 /* прогнозы */
 .istat{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .istat .bal b{font-size:18px}
@@ -273,10 +281,11 @@ td.num{font-family:var(--font-num)}
           <label class="fld"><span>Шаг цены</span><input id="f-step" inputmode="decimal" placeholder="1"></label>
           <label class="fld"><span>Стоимость шага, ₽</span><input id="f-stepCost" inputmode="decimal" placeholder="1"></label>
         </div>
-        <div class="sizer">
-          <label class="fld"><span>Риск, % депо</span><input id="f-riskPct" inputmode="decimal"></label>
-          <button type="button" class="btn soft" id="calcSize">Рассчитать объём по риску</button>
-        </div>
+        <div class="fld"><span class="lbl">Вход, % депозита</span><div class="pct-row" data-k="ep"><div class="chips"></div><input id="f-entryPct" inputmode="decimal" aria-label="Вход, % депозита"></div></div>
+        <div class="fld"><span class="lbl">Стоп, % депозита</span><div class="pct-row" data-k="rp"><div class="chips"></div><input id="f-riskPct" inputmode="decimal" aria-label="Стоп, % депозита"></div></div>
+        <div class="readout" id="ro-plan"></div>
+        <p class="plan-note" id="ro-plan-note"></p>
+        <button type="button" class="btn soft" id="calcSize">Подставить объём</button>
         <div class="readout" id="ro-risk"></div>
         <div class="warnline" id="warn-risk" hidden></div>
       </div>
@@ -358,10 +367,25 @@ td.num{font-family:var(--font-num)}
           <label class="fld"><span>ТВХ — точка входа</span><input id="i-entry" inputmode="decimal" placeholder="0"></label>
           <label class="fld"><span>SL — стоп-лосс</span><input id="i-stop" inputmode="decimal" placeholder="0"></label>
         </div>
+        <div class="row2" data-ionly="crypto"><label class="fld"><span>Плечо, x</span><input id="i-lev" inputmode="decimal" placeholder="10"></label><div></div></div>
+        <div class="row2" data-ionly="stocks"><label class="fld"><span>Акций в лоте</span><input id="i-lot" inputmode="decimal" placeholder="1"></label><div></div></div>
+        <div class="row3" data-ionly="moex">
+          <label class="fld"><span>ГО на контракт, ₽</span><input id="i-go" inputmode="decimal" placeholder="0"></label>
+          <label class="fld"><span>Шаг цены</span><input id="i-step" inputmode="decimal" placeholder="1"></label>
+          <label class="fld"><span>Стоимость шага, ₽</span><input id="i-stepCost" inputmode="decimal" placeholder="1"></label>
+        </div>
         <div class="readout" id="ro-idea"></div>
         <div class="warnline" id="warn-idea" hidden></div>
         <div id="itakes" style="display:flex;flex-direction:column;gap:8px"></div>
         <button type="button" class="btn ghost small" id="addITake">+ Добавить тейк</button>
+      </div>
+
+      <h3 class="sec">Расчёт позиции</h3>
+      <div class="card">
+        <div class="fld"><span class="lbl">Вход, % депозита</span><div class="pct-row" data-k="ep"><div class="chips"></div><input id="i-entryPct" inputmode="decimal" aria-label="Вход, % депозита"></div></div>
+        <div class="fld"><span class="lbl">Стоп, % депозита</span><div class="pct-row" data-k="rp"><div class="chips"></div><input id="i-riskPct" inputmode="decimal" aria-label="Стоп, % депозита"></div></div>
+        <div class="readout" id="ro-iplan"></div>
+        <p class="plan-note" id="ro-iplan-note"></p>
       </div>
 
       <h3 class="sec">Обоснование входа</h3>
@@ -417,9 +441,9 @@ const WDS = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
 const DEFAULTS = {
   v: 1,
   markets: {
-    crypto: { deposit: 1000, cur: 'USDT', feePct: 0.05, mmr: 0.5, lev: 10 },
-    stocks: { deposit: 10000, cur: '$', feePct: 0.05 },
-    moex:   { deposit: 300000, cur: '₽', feeRub: 2 }
+    crypto: { deposit: 1000, cur: 'USDT', feePct: 0.05, mmr: 0.5, lev: 10, entryPct: 10, riskPct: 1 },
+    stocks: { deposit: 10000, cur: '$', feePct: 0.05, entryPct: 20, riskPct: 1 },
+    moex:   { deposit: 300000, cur: '₽', feeRub: 2, entryPct: 20, riskPct: 1 }
   },
   riskPct: 1,
   setups: ['Пробой','Ложный пробой','Ретест уровня','Отбой от уровня','Переприор','Сбор ликвидности','По тренду','Контртренд'],
@@ -498,6 +522,25 @@ function sizeForRisk(t, riskPct, dep) {
   const raw = dep * riskPct / 100 / (Math.abs(entry - stop) * P);
   if (t.market === 'crypto') return Math.floor(raw * 1000) / 1000;
   return Math.floor(raw);
+}
+/* объём позиции: ограничение по % депозита на вход (с плечом / ГО) и по стопу в % депозита */
+function sizePlan(t, o) {
+  const entry = num(t.entry), stop = num(t.stop), P = pointValue(t), dir = t.dir === 'short' ? -1 : 1;
+  const dep = o.dep, ep = o.entryPct, rp = o.riskPct;
+  const r = { dep, ep, rp, entry, alloc: dep > 0 && ep > 0 ? dep * ep / 100 : NaN, riskMoney: dep > 0 && rp > 0 ? dep * rp / 100 : NaN, slots: ep > 0 ? Math.floor(100 / ep + 1e-9) : NaN };
+  const dist = ok(entry) && ok(stop) && entry !== stop ? Math.abs(entry - stop) : NaN;
+  const unitRisk = ok(dist) && ok(P) ? dist * P : NaN;
+  let round;
+  if (t.market === 'crypto') { r.lev = o.lev > 0 ? o.lev : 1; r.notionalMax = r.alloc * r.lev; r.unitMargin = entry > 0 ? entry / r.lev : NaN; round = x => Math.floor(x * 1000 + 1e-7) / 1000; }
+  else if (t.market === 'moex') { r.unitMargin = o.go > 0 ? o.go : NaN; round = x => Math.floor(x + 1e-9); }
+  else { r.unitMargin = entry > 0 && ok(P) ? entry * P : NaN; round = x => Math.floor(x + 1e-9); }
+  r.byMargin = r.unitMargin > 0 && r.alloc > 0 ? round(r.alloc / r.unitMargin) : NaN;
+  r.byRisk = unitRisk > 0 && r.riskMoney > 0 ? round(r.riskMoney / unitRisk) : NaN;
+  r.qty = ok(r.byMargin) && ok(r.byRisk) ? Math.min(r.byMargin, r.byRisk) : ok(r.byMargin) ? r.byMargin : r.byRisk;
+  r.limit = ok(r.byMargin) && ok(r.byRisk) ? (r.byRisk < r.byMargin ? 'risk' : r.byMargin < r.byRisk ? 'margin' : 'both') : ok(r.byRisk) ? 'risk' : ok(r.byMargin) ? 'margin' : null;
+  if (r.byMargin > 0 && ok(P) && r.riskMoney > 0) { r.maxDist = r.riskMoney / (r.byMargin * P); r.maxStopPrice = ok(entry) ? entry - dir * r.maxDist : NaN; }
+  if (r.qty > 0) { r.realRisk = ok(unitRisk) ? r.qty * unitRisk : NaN; r.realRiskPct = r.realRisk / dep * 100; r.usedMargin = ok(r.unitMargin) ? r.qty * r.unitMargin : NaN; r.usedPct = r.usedMargin / dep * 100; }
+  return r;
 }
 /*CALC-END*/
 
@@ -586,6 +629,7 @@ function show(tab) {
   $('#viewTitle').textContent = titles[tab];
   const isForm = tab === 'form' || tab === 'idea';
   $('#backBtn').hidden = !isForm; $('#saveTop').hidden = !isForm;
+  $('.appbar').classList.toggle('form', isForm);
   $('#addBtn').setAttribute('aria-label', tab === 'ideas' || tab === 'idea' ? 'Новый прогноз' : 'Новая сделка');
   if (tab === 'journal') renderJournal();
   if (tab === 'ideas') renderIdeas();
@@ -670,7 +714,7 @@ function openForm(t, dup, pre) {
   $('#f-entryAt').value = d.entryAt || ''; $('#f-exitAt').value = d.exitAt || '';
   ['entry', 'stop', 'qty', 'lot', 'go', 'step', 'stepCost', 'exit', 'fee'].forEach(k => $('#f-' + k).value = d[k] ?? '');
   $('#f-lev').value = d.lev ?? (isNew ? S.markets.crypto.lev : '');
-  $('#f-riskPct').value = S.riskPct;
+  { const df = planDefaults(d.market); setPlan('f', d.planEp || df.ep, d.planRp || df.rp); }
   $('#f-tf').innerHTML = '<option value="">—</option>' + S.tfs.map(x => `<option ${x === d.tf ? 'selected' : ''}>${esc(x)}</option>`).join('') + (d.tf && !S.tfs.includes(d.tf) ? `<option selected>${esc(d.tf)}</option>` : '');
   $('#f-notes').value = d.notes || '';
   $('#takes').innerHTML = ''; (d.takes && d.takes.length ? d.takes : [{}]).slice(0, 5).forEach(x => $('#takes').appendChild(takeRow(x))); renumberTakes();
@@ -695,6 +739,7 @@ function readForm() {
     shot: UI.shot
   };
   ['entry', 'stop', 'qty', 'exit', 'fee'].forEach(k => t[k] = $('#f-' + k).value.trim());
+  t.planEp = $('#f-entryPct').value.trim(); t.planRp = $('#f-riskPct').value.trim();
   if (t.market === 'crypto') t.lev = $('#f-lev').value.trim();
   if (t.market === 'stocks') t.lot = $('#f-lot').value.trim();
   if (t.market === 'moex') { t.step = $('#f-step').value.trim(); t.stepCost = $('#f-stepCost').value.trim(); t.go = $('#f-go').value.trim(); }
@@ -732,9 +777,11 @@ function updateCalc() {
   if (t.market === 'moex') cells.push(['ГО всего', ok(r.margin) ? fmtN(r.margin, 0) + ' ₽' : '—'], ['1 пункт =', ok(r.k) ? fmtN(r.k, 2) + ' ₽' : '—']);
   if (t.market === 'stocks') cells.push(['Акций всего', ok(r.k) ? fmtN(r.k, 0) : '—']);
   $('#ro-risk').innerHTML = cells.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  renderPlan('ro-plan', t, planFor(t, 'f'));
   const w = [];
   if (r.stopWrong) w.push('Стоп стоит не с той стороны от входа — проверьте направление.');
-  if (ok(r.riskPct) && r.riskPct > S.riskPct * 2) w.push('Риск больше плана в ' + fmtN(r.riskPct / S.riskPct, 1) + ' раза.');
+  const planRp = num(t.planRp); if (ok(r.riskPct) && planRp > 0 && r.riskPct > planRp * 1.5) w.push('Риск по стопу ' + pct(r.riskPct) + ' депо — больше плана ' + pct(planRp) + '.');
+  if (ok(r.margin) && r.margin > r.dep) w.push((t.market === 'moex' ? 'ГО' : 'Маржа') + ' больше депозита — уменьшите объём' + (t.market === 'crypto' ? ' или увеличьте плечо' : '') + '.');
   if (r.liqBeforeStop) w.push('Ликвидация наступит раньше стопа — уменьшите плечо.');
   if (t.market === 'moex' && !(num(t.stepCost) > 0)) w.push('Укажите шаг цены и его стоимость — без них риск и результат не посчитать.');
   $('#warn-risk').hidden = !w.length; $('#warn-risk').innerHTML = w.map(esc).join('<br>');
@@ -925,6 +972,7 @@ function renderSettings() {
       ${m === 'moex' ? `<label class="fld"><span>Комиссия, ₽ за контракт за сторону</span><input inputmode="decimal" data-s="moex.feeRub" value="${esc(s.feeRub)}"></label>`
         : `<label class="fld"><span>Комиссия, % за сторону (вход и выход)</span><input inputmode="decimal" data-s="${m}.feePct" value="${esc(s.feePct)}"></label>`}
       ${m === 'crypto' ? `<div class="row2"><label class="fld"><span>Плечо по умолчанию</span><input inputmode="decimal" data-s="crypto.lev" value="${esc(s.lev)}"></label><label class="fld"><span>Поддерж. маржа, %</span><input inputmode="decimal" data-s="crypto.mmr" value="${esc(s.mmr)}"></label></div>` : ''}
+      <div class="row2"><label class="fld"><span>Вход по умолчанию, % депо</span><input inputmode="decimal" data-s="${m}.entryPct" value="${esc(s.entryPct ?? 10)}"></label><label class="fld"><span>Стоп по умолчанию, % депо</span><input inputmode="decimal" data-s="${m}.riskPct" value="${esc(s.riskPct ?? 1)}"></label></div>
       <p class="note">Текущий баланс: <b class="num">${fmtN(balance(m), 2)} ${esc(s.cur)}</b></p></div>`;
   };
   const list = (key, title) => `<label class="fld"><span>${title} — по одному в строке</span><textarea data-list="${key}">${esc(S[key].join('\n'))}</textarea></label>`;
@@ -933,8 +981,6 @@ function renderSettings() {
   const demoN = TR.filter(t => t.demo).length + IDEAS.filter(i => i.demo).length;
   $('#v-settings').innerHTML = `
     ${standalone ? '' : `<div class="card"><div class="mk-head">Установка на iPhone</div><ol class="steps"><li>Откройте эту страницу в Safari.</li><li>Нажмите «Поделиться» (квадрат со стрелкой вверх).</li><li>Выберите «На экран “Домой”» и нажмите «Добавить».</li></ol><p class="note">После этого журнал открывается с иконки как приложение и работает без интернета.</p></div>`}
-    <h3 class="sec">Риск</h3>
-    <div class="card"><label class="fld"><span>Плановый риск на сделку, % депозита</span><input inputmode="decimal" data-s="riskPct" value="${esc(S.riskPct)}"></label><p class="note">Используется в кнопке «Рассчитать объём по риску» и для предупреждения о превышении риска.</p></div>
     <h3 class="sec">Рынки и депозиты</h3>
     ${Object.keys(MARKETS).map(mk).join('')}
     ${specs ? `<div class="card"><div class="mk-head">Запомненные фьючерсы ММВБ</div><p class="note num">${specs}</p><p class="note">Параметры подставляются автоматически, когда вы вводите тикер. Обновляются при сохранении сделки.</p></div>` : ''}
@@ -1129,7 +1175,7 @@ function exportXLSX() {
 function mergeSettings(s) {
   const d = JSON.parse(JSON.stringify(DEFAULTS));
   const out = { ...d, ...s, markets: { ...d.markets } };
-  for (const m of Object.keys(d.markets)) out.markets[m] = { ...d.markets[m], ...(s.markets && s.markets[m] || {}) };
+  for (const m of Object.keys(d.markets)) { out.markets[m] = { ...d.markets[m], ...(s.markets && s.markets[m] || {}) }; if (s.riskPct != null && !(s.markets && s.markets[m] && s.markets[m].riskPct != null)) out.markets[m].riskPct = s.riskPct; }
   out.specs = { ...d.specs, ...(s.specs || {}) }; out.lots = { ...(s.lots || {}) };
   return out;
 }
@@ -1169,6 +1215,48 @@ function makeDemo() {
   return out;
 }
 
+/* ---------- расчёт позиции (общий для сделки и прогноза) ---------- */
+const EP_PRESETS = [5, 10, 20, 25, 50, 100], RP_PRESETS = [0.5, 1, 2, 3, 5];
+function planDefaults(m) { const mk = S.markets[m] || {}; return { ep: mk.entryPct ?? 10, rp: mk.riskPct ?? 1 }; }
+function syncPct(row) { const v = num($('input', row).value); $$('.chip', row).forEach(c => c.setAttribute('aria-pressed', String(num(c.dataset.pv) === v))); }
+function setPlan(prefix, ep, rp) { $('#' + prefix + '-entryPct').value = ep; $('#' + prefix + '-riskPct').value = rp; [$('#' + prefix + '-entryPct'), $('#' + prefix + '-riskPct')].forEach(i => syncPct(i.closest('.pct-row'))); }
+function planFor(t, prefix) {
+  const dep = num(t.dep) > 0 ? num(t.dep) : balance(t.market, t.id);
+  return sizePlan(t, { dep, entryPct: num($('#' + prefix + '-entryPct').value), riskPct: num($('#' + prefix + '-riskPct').value), lev: num(t.lev), go: num(t.go) });
+}
+function renderPlan(id, t, r) {
+  const c = cur(t.market), u = { crypto: 'монет', stocks: 'лот.', moex: 'контр.' }[t.market], dq = t.market === 'crypto' ? 3 : 0;
+  const q = v => ok(v) ? fmtN(v, dq) + ' ' + u : '—', m = v => ok(v) ? fmtN(v, 2) + ' ' + c : '—';
+  const cells = [['Депозит', m(r.dep)], ['На вход, ' + pct(r.ep), m(r.alloc)]];
+  if (t.market === 'crypto') cells.push(['Позиция с плечом x' + fmtN(r.lev, 1), m(r.notionalMax)]);
+  if (t.market === 'moex') cells.push(['ГО на контракт', ok(r.unitMargin) ? fmtN(r.unitMargin, 0) + ' ₽' : 'укажите ГО']);
+  if (t.market === 'stocks') cells.push(['Стоимость лота', m(r.unitMargin)]);
+  cells.push(['Стоп, ' + pct(r.rp) + ' депо', m(r.riskMoney)], ['По депозиту', t.market === 'moex' && !ok(r.unitMargin) ? 'нужно ГО' : q(r.byMargin)],
+    ['По стопу', ok(r.byRisk) ? q(r.byRisk) : (t.market === 'moex' && !(num(t.stepCost) > 0) ? 'нужен шаг цены' : 'укажите стоп')], ['Можно войти', q(r.qty), 1]);
+  if (ok(r.maxDist)) cells.push(['Допустимый стоп при полном входе', t.market === 'moex' ? fmtPrice(r.maxDist) + ' п. · ' + fmtPrice(r.maxStopPrice) : pct(r.maxDist / r.entry * 100) + ' · ' + fmtPrice(r.maxStopPrice)]);
+  if (ok(r.slots)) cells.push(['Таких позиций одновременно', 'до ' + r.slots]);
+  $('#' + id).innerHTML = cells.map(([a, b, main]) => `<div${main ? ' class="ro-main"' : ''}><span>${a}</span><b>${b}</b></div>`).join('');
+  let note = '';
+  if (r.qty === 0) note = 'Даже минимальный объём не помещается: увеличьте % входа или стоп в % депо, либо поставьте стоп ближе.';
+  else if (r.limit === 'risk' && ok(r.usedPct)) note = `Объём ограничивает стоп: на вход уйдёт ${pct(r.usedPct)} депо вместо ${pct(r.ep)}.`;
+  else if (r.limit === 'margin' && ok(r.realRiskPct)) note = `Объём ограничивает депозит: при стопе риск составит ${pct(r.realRiskPct)} депо вместо ${pct(r.rp)}.`;
+  else if (r.limit === 'both') note = 'Вход и стоп совпадают с планом.';
+  $('#' + id + '-note').textContent = note;
+}
+function applyIdeaMarket() {
+  const m = segGet('iMarket');
+  $$('#v-idea [data-ionly]').forEach(el => el.hidden = el.dataset.ionly !== m);
+  if (m === 'crypto' && !$('#i-lev').value) $('#i-lev').value = S.markets.crypto.lev;
+}
+function fillIdeaSpecs() {
+  const m = segGet('iMarket'), sym = $('#i-symbol').value.trim().toUpperCase(); if (!sym) return;
+  if (m === 'moex') {
+    const sp = S.specs[sym] || S.specs[sym.replace(/[-\d.]+$/, '').replace(/[FGHJKMNQUVXZ]\d$/, '')];
+    if (sp) { if (!$('#i-step').value) $('#i-step').value = sp.step || ''; if (!$('#i-stepCost').value) $('#i-stepCost').value = sp.stepCost || ''; if (!$('#i-go').value) $('#i-go').value = sp.go || ''; }
+  }
+  if (m === 'stocks' && S.lots[sym] && !$('#i-lot').value) $('#i-lot').value = S.lots[sym];
+}
+
 /* ---------- прогнозы ---------- */
 const ISTAT = { wait: 'ждёт входа', entered: 'вход', tp: 'тейк', sl: 'стоп', cancel: 'отменён' };
 const tfRank = tf => S.tfs.indexOf(tf);
@@ -1178,13 +1266,6 @@ function ideaLevels(i) {
   const takes = (i.takes || []).map(x => { const p = num(x.price); return { price: p, rr: ok(p) && dist > 0 ? (p - entry) * dir / dist : NaN }; });
   return { dir, entry, stop, dist, distPct: ok(dist) && entry ? dist / entry * 100 : NaN, wrong: ok(entry) && ok(stop) && (dir > 0 ? stop >= entry : stop <= entry), takes };
 }
-function ideaSize(i) {
-  const sym = (i.symbol || '').toUpperCase();
-  const t = { market: i.market, entry: i.entry, stop: i.stop, lot: S.lots[sym] || 1 };
-  if (i.market === 'moex') { const sp = S.specs[sym] || {}; t.step = sp.step; t.stepCost = sp.stepCost; }
-  return sizeForRisk(t, S.riskPct, balance(i.market));
-}
-
 function renderIdeas() {
   const c = k => IDEAS.filter(x => x.status === k).length, done = c('tp') + c('sl');
   $('#ideaStats').innerHTML = [
@@ -1237,6 +1318,8 @@ function openIdea(i) {
   segSet('iMarket', d.market); segSet('iDir', d.dir || 'long'); segSet('iStatus', d.status || 'wait');
   $('#i-symbol').value = d.symbol || ''; $('#i-at').value = d.at || '';
   $('#i-entry').value = d.entry ?? ''; $('#i-stop').value = d.stop ?? '';
+  ['go', 'step', 'stepCost', 'lot'].forEach(k => $('#i-' + k).value = d[k] ?? ''); $('#i-lev').value = d.lev ?? '';
+  { const df = planDefaults(d.market); setPlan('i', d.planEp || df.ep, d.planRp || df.rp); }
   $('#i-why').value = d.why || ''; $('#i-cancel').value = d.cancelIf || ''; $('#i-result').value = d.result || '';
   $('#i-tf').innerHTML = '<option value="">—</option>' + S.tfs.map(x => `<option ${x === d.tf ? 'selected' : ''}>${esc(x)}</option>`).join('') + (d.tf && !S.tfs.includes(d.tf) ? `<option selected>${esc(d.tf)}</option>` : '');
   $('#itakes').innerHTML = ''; (d.takes && d.takes.length ? d.takes : [{}]).slice(0, 5).forEach(x => $('#itakes').appendChild(iTakeRow(x.price ?? ''))); renumberITakes();
@@ -1245,7 +1328,7 @@ function openIdea(i) {
   $('#toTrade').textContent = d.tradeId && TR.some(t => t.id === d.tradeId) ? 'Перейти к сделке' : 'Открыть сделку по прогнозу';
   $('#symList').innerHTML = [...new Set([...TR, ...IDEAS].map(x => x.symbol).filter(Boolean))].map(s => `<option value="${esc(s)}">`).join('');
   $$('#v-idea input.bad').forEach(x => x.classList.remove('bad'));
-  renderGraphs(); show('idea'); updateIdeaCalc();
+  applyIdeaMarket(); fillIdeaSpecs(); renderGraphs(); show('idea'); updateIdeaCalc();
 }
 
 function readIdea() {
@@ -1257,7 +1340,9 @@ function readIdea() {
     entry: $('#i-entry').value.trim(), stop: $('#i-stop').value.trim(),
     takes: $$('#itakes .itake').map(r => ({ price: $('.itk-price', r).value.trim() })).filter(x => x.price),
     setup: chipsGet('i-setup')[0] || '', why: $('#i-why').value.trim(), cancelIf: $('#i-cancel').value.trim(), result: $('#i-result').value.trim(),
-    graphs: UI.igraphs
+    graphs: UI.igraphs,
+    lev: $('#i-lev').value.trim(), go: $('#i-go').value.trim(), step: $('#i-step').value.trim(), stepCost: $('#i-stepCost').value.trim(), lot: $('#i-lot').value.trim(),
+    planEp: $('#i-entryPct').value.trim(), planRp: $('#i-riskPct').value.trim()
   };
   if (prev && prev.tradeId) i.tradeId = prev.tradeId;
   if (prev && prev.demo) i.demo = true;
@@ -1267,14 +1352,13 @@ function readIdea() {
 function updateIdeaCalc() {
   const i = readIdea(), L = ideaLevels(i);
   $('#wd-idea').textContent = wdOf(i.at);
-  const rrs = L.takes.map(x => x.rr).filter(ok), q = ideaSize(i);
-  const unit = { crypto: 'монет', stocks: 'лотов', moex: 'контр.' }[i.market];
+  const rrs = L.takes.map(x => x.rr).filter(ok);
   $('#ro-idea').innerHTML = [
     ['Стоп, пунктов', ok(L.dist) ? fmtPrice(L.dist) : '—'],
     ['Стоп от ТВХ', pct(L.distPct)],
-    ['Лучший R:R', rrs.length ? '1:' + fmtN(Math.max(...rrs), 2) : '—'],
-    ['Объём на риск ' + fmtN(S.riskPct, 2) + '%', ok(q) && q > 0 ? fmtN(q, 3) + ' ' + unit : '—']
+    ['Лучший R:R', rrs.length ? '1:' + fmtN(Math.max(...rrs), 2) : '—']
   ].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  renderPlan('ro-iplan', i, planFor(i, 'i'));
   $$('#itakes .itake').forEach(row => {
     const p = num($('.itk-price', row).value), rr = ok(p) && L.dist > 0 ? (p - L.entry) * L.dir / L.dist : NaN, el = $('.tk-rr', row);
     el.textContent = ok(rr) ? '1:' + fmtN(rr, 2) : '—'; el.className = 'tk-rr' + (ok(rr) && rr < 0 ? ' neg' : '');
@@ -1289,6 +1373,9 @@ function updateIdeaCalc() {
 async function saveIdea(silent) {
   const isNew = !UI.editingIdea, i = readIdea();
   if (!i.symbol) { $('#i-symbol').classList.add('bad'); $('#i-symbol').focus(); toast('Укажите тикер'); return null; }
+  if (i.market === 'moex' && (i.step || i.stepCost || i.go)) S.specs[i.symbol] = { step: i.step, stepCost: i.stepCost, go: i.go };
+  if (i.market === 'stocks' && i.lot) S.lots[i.symbol] = i.lot;
+  await saveSettings();
   await DB.put('ideas', i);
   const k = IDEAS.findIndex(x => x.id === i.id); if (k >= 0) IDEAS[k] = i; else IDEAS.push(i);
   UI.editingIdea = i.id;
@@ -1354,10 +1441,11 @@ function makeDemoIdeas() {
 document.addEventListener('click', async e => {
   const b = e.target.closest('button, img[data-act]'); if (!b) return;
   if (b.classList.contains('tab')) return show(b.dataset.tab);
+  if (b.dataset.pv !== undefined && b.closest('.pct-row')) { const row = b.closest('.pct-row'); $('input', row).value = b.dataset.pv; syncPct(row); return UI.tab === 'idea' ? updateIdeaCalc() : updateCalc(); }
   if (b.id === 'addBtn') return (UI.tab === 'ideas' || UI.tab === 'idea') ? openIdea(null) : openForm(null);
   if (b.matches('.idea')) { const i = IDEAS.find(x => x.id === b.dataset.iid); if (i) openIdea(i); return; }
   if (b.dataset.if) { UI.if = b.dataset.if; return renderIdeas(); }
-  if (b.closest('#iMarket')) { segSet('iMarket', b.dataset.v); return updateIdeaCalc(); }
+  if (b.closest('#iMarket')) { segSet('iMarket', b.dataset.v); applyIdeaMarket(); fillIdeaSpecs(); const df = planDefaults(b.dataset.v); setPlan('i', df.ep, df.rp); return updateIdeaCalc(); }
   if (b.closest('#iDir')) { segSet('iDir', b.dataset.v); return updateIdeaCalc(); }
   if (b.closest('#iStatus')) { segSet('iStatus', b.dataset.v); return updateIdeaCalc(); }
   if (b.classList.contains('itk-del')) { b.closest('.itake').remove(); if (!$$('#itakes .itake').length) $('#itakes').appendChild(iTakeRow()); renumberITakes(); return updateIdeaCalc(); }
@@ -1373,6 +1461,8 @@ document.addEventListener('click', async e => {
       market: i.market, dir: i.dir, symbol: i.symbol, entry: i.entry, stop: i.stop, status: 'open',
       tf: i.tf || (main ? main.tf : ''), setup: i.setup, notes: i.why, shot: main ? main.img : null,
       emotions: [], mistakes: [], ideaId: i.id,
+      lev: i.lev, go: i.go, step: i.step, stepCost: i.stepCost, lot: i.lot, planEp: i.planEp, planRp: i.planRp,
+      qty: (() => { const r = planFor(i, 'i'); return r.qty > 0 ? String(r.qty) : ''; })(),
       takes: n ? tps.map((x, k) => ({ price: x.price, pct: String(k === n - 1 ? 100 - p * (n - 1) : p), hit: false })) : [{}]
     });
   }
@@ -1388,7 +1478,7 @@ document.addEventListener('click', async e => {
   if (b.dataset.fm) { UI.fm = b.dataset.fm; return renderJournal(); }
   if (b.dataset.sp) { UI.sp = b.dataset.sp; return renderStats(); }
   if (b.closest('#segSM')) { UI.sm = b.dataset.v; return renderStats(); }
-  if (b.closest('#segMarket')) { segSet('segMarket', b.dataset.v); applyMarket(); fillSpecs(); return updateCalc(); }
+  if (b.closest('#segMarket')) { segSet('segMarket', b.dataset.v); applyMarket(); fillSpecs(); const df = planDefaults(b.dataset.v); setPlan('f', df.ep, df.rp); return updateCalc(); }
   if (b.closest('#segDir')) { segSet('segDir', b.dataset.v); return updateCalc(); }
   if (b.closest('#segStatus')) { segSet('segStatus', b.dataset.v); if (b.dataset.v === 'closed' && !$('#f-exitAt').value) $('#f-exitAt').value = localISO(); return updateCalc(); }
   if (b.classList.contains('chip') && b.closest('#v-form, #v-idea')) {
@@ -1405,10 +1495,10 @@ document.addEventListener('click', async e => {
     $('.tk-price', all[all.length - 1]).focus(); return updateCalc();
   }
   if (b.id === 'calcSize') {
-    const t = readForm(); const rp = num($('#f-riskPct').value); const q = sizeForRisk(t, rp, t.dep);
-    if (!ok(q)) return toast('Укажите цену входа и стоп' + (t.market === 'moex' ? ', шаг и стоимость шага' : ''));
-    if (q <= 0) return toast('Стоп слишком широкий для такого риска — даже 1 ' + (t.market === 'moex' ? 'контракт' : 'лот') + ' превышает его');
-    $('#f-qty').value = String(q); return updateCalc();
+    const t = readForm(), r = planFor(t, 'f');
+    if (!ok(r.qty)) return toast(t.market === 'moex' ? 'Укажите цену входа, стоп, ГО, шаг и стоимость шага' : 'Укажите цену входа и стоп');
+    if (r.qty <= 0) return toast('Объём не помещается в лимиты: увеличьте % входа или стоп, либо поставьте стоп ближе');
+    $('#f-qty').value = String(r.qty); return updateCalc();
   }
   if (b.id === 'dupBtn') { const t = TR.find(x => x.id === UI.editing); if (t) openForm(t, true); return; }
   if (b.id === 'delBtn') {
@@ -1428,14 +1518,15 @@ document.addEventListener('click', async e => {
 });
 $('#viewer').addEventListener('click', () => $('#viewer').hidden = true);
 $('#tradeForm').addEventListener('submit', e => { e.preventDefault(); saveForm(); });
-$('#tradeForm').addEventListener('input', e => { if (e.target.classList.contains('tk-pct')) e.target.dataset.touched = '1'; e.target.classList.remove('bad'); updateCalc(); });
+$('#tradeForm').addEventListener('input', e => { if (e.target.closest('.pct-row')) syncPct(e.target.closest('.pct-row')); if (e.target.classList.contains('tk-pct')) e.target.dataset.touched = '1'; e.target.classList.remove('bad'); updateCalc(); });
 $('#f-symbol').addEventListener('change', () => { fillSpecs(); updateCalc(); });
 $('#f-shot').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; try { UI.shot = await compressImage(f); renderShot(); } catch (err) { toast('Не удалось открыть изображение'); } e.target.value = ''; });
 $('#q').addEventListener('input', e => { UI.q = e.target.value; renderJournal(); });
+$('#i-symbol').addEventListener('change', () => { fillIdeaSpecs(); updateIdeaCalc(); });
 $('#iq').addEventListener('input', e => { UI.iq = e.target.value; renderIdeas(); });
 $('#ideaForm').addEventListener('submit', e => { e.preventDefault(); saveIdea(); });
 $('#ideaForm').addEventListener('input', e => {
-  const el = e.target; el.classList.remove('bad');
+  const el = e.target; el.classList.remove('bad'); if (el.closest('.pct-row')) syncPct(el.closest('.pct-row'));
   if (el.classList.contains('g-note')) { const g = UI.igraphs.find(x => x.id === el.closest('.gimg').dataset.gid); if (g) g.note = el.value; return; }
   updateIdeaCalc();
 });
@@ -1475,6 +1566,8 @@ window.addEventListener('resize', () => { if (UI.tab === 'stats') renderStats();
 
 /* ---------- запуск ---------- */
 (async function init() {
+  $$('.pct-row[data-k="ep"] .chips').forEach(c => c.innerHTML = EP_PRESETS.map(v => `<button type="button" class="chip sm" data-pv="${v}">${String(v).replace('.', ',')}%</button>`).join(''));
+  $$('.pct-row[data-k="rp"] .chips').forEach(c => c.innerHTML = RP_PRESETS.map(v => `<button type="button" class="chip sm" data-pv="${v}">${String(v).replace('.', ',')}%</button>`).join(''));
   await DB.open();
   const saved = await DB.get('settings'); if (saved) S = mergeSettings(saved);
   TR = await DB.all('trades'); IDEAS = await DB.all('ideas'); TOMBS = (await DB.get('deleted')) || {}; LASTSYNC = (await DB.get('lastSync')) || null;
