@@ -1,0 +1,1490 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Журнал">
+<meta name="theme-color" content="#eef1f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1218" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<!-- «Журнал сделок» © 2026 владелец репозитория на GitHub. Все права защищены. Копирование и публикация без разрешения автора запрещены. -->
+<title>Журнал сделок</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: нативный iOS-подход — липкая шапка, лента карточек, нижняя панель вкладок с круглой кнопкой «+» */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --surface2:#f5f7f9; --ink:#14202b; --muted:#5b6977; --line:#d8dee5;
+  --accent:#2f5bd3; --accent-ink:#ffffff; --profit:#11845a; --loss:#c63a2f; --warn:#a96d12;
+  --m-crypto:#c9761f; --m-stocks:#6d4fe0; --m-moex:#14888e;
+  --profit-bg:color-mix(in srgb,var(--profit) 12%,transparent); --loss-bg:color-mix(in srgb,var(--loss) 12%,transparent);
+  --font:-apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-num:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1218; --surface:#141c25; --surface2:#1b2530; --ink:#e5ecf2; --muted:#8a99a7; --line:#26323f;
+  --accent:#6e92ff; --accent-ink:#0b1220; --profit:#3fcf8e; --loss:#ff6b5e; --warn:#e2a64a;
+  --m-crypto:#f0a050; --m-stocks:#a28cff; --m-moex:#40c4c9; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0c1218; --surface:#141c25; --surface2:#1b2530; --ink:#e5ecf2; --muted:#8a99a7; --line:#26323f;
+  --accent:#6e92ff; --accent-ink:#0b1220; --profit:#3fcf8e; --loss:#ff6b5e; --warn:#e2a64a;
+  --m-crypto:#f0a050; --m-stocks:#a28cff; --m-moex:#40c4c9; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.4;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 calc(86px + env(safe-area-inset-bottom,0px));-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pos{color:var(--profit)} .neg{color:var(--loss)} .mut{color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* шапка */
+.appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);display:flex;align-items:center;gap:12px;padding-block:14px 10px;min-height:56px}
+.appbar h1{font-size:28px;line-height:1.1;font-weight:750;letter-spacing:-.03em;margin:0;flex:1;min-width:0;text-wrap:balance}
+.appbar .lnk{background:none;border:0;color:var(--accent);font-size:16px;font-weight:600;padding:6px 2px}
+
+/* вкладки */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;
+  padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));
+  padding-top:6px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));
+  background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line)}
+.tab{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);padding:4px 0}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current="page"]{color:var(--accent)}
+.tab-add{justify-self:center;width:52px;height:52px;border-radius:50%;background:var(--accent);color:var(--accent-ink);border:0;display:grid;place-items:center;margin-bottom:4px;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 35%,transparent)}
+.tab-add svg{width:26px;height:26px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round}
+
+/* общие блоки */
+.view{display:flex;flex-direction:column;gap:14px;padding-bottom:12px}
+.card{background:var(--surface);border-radius:var(--r);padding:14px 12px;display:flex;flex-direction:column;gap:12px;border:1px solid var(--line)}
+.sec{font-size:13px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:6px 4px -6px}
+.sec small{text-transform:none;letter-spacing:0;font-weight:500}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.row2>*,.row3>*{min-width:0}
+.fld{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fld>span{font-size:12.5px;color:var(--muted);font-weight:550}
+.fld small{font-size:12px;color:var(--muted);min-height:1em}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;min-width:0;appearance:none;-webkit-appearance:none}
+input[type="datetime-local"]{min-height:44px;font-size:15px}
+textarea{min-height:84px;resize:vertical}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 55%,calc(100% - 11px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:26px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+input.bad{border-color:var(--loss)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:3px}
+.seg button{border:0;background:none;border-radius:8px;padding:8px 4px;font-weight:600;font-size:14px;color:var(--muted);min-height:36px}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+#segDir button[data-v="long"][aria-pressed="true"]{background:var(--profit);color:#fff}
+#segDir button[data-v="short"][aria-pressed="true"]{background:var(--loss);color:#fff}
+.seg-market button[aria-pressed="true"][data-v="crypto"]{color:var(--m-crypto)}
+.seg-market button[aria-pressed="true"][data-v="stocks"]{color:var(--m-stocks)}
+.seg-market button[aria-pressed="true"][data-v="moex"]{color:var(--m-moex)}
+.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:650;font-size:16px;background:var(--accent);color:var(--accent-ink);min-height:46px}
+.btn.ghost{background:var(--surface2);color:var(--accent);border:1px dashed var(--line)}
+.btn.soft{background:var(--surface2);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--loss-bg);color:var(--loss)}
+.btn.small{padding:8px 12px;min-height:38px;font-size:14px}
+.btn:disabled{opacity:.45}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--line);background:var(--surface2);border-radius:999px;padding:7px 12px;font-size:14px;color:var(--ink)}
+.chip[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 16%,var(--surface));border-color:var(--accent);color:var(--accent);font-weight:600}
+.chips.bad .chip[aria-pressed="true"]{background:var(--loss-bg);border-color:var(--loss);color:var(--loss)}
+.lbl{font-size:12.5px;color:var(--muted);font-weight:550}
+
+/* расчётная панель */
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;background:var(--surface2);border-radius:10px;padding:10px;border:1px solid var(--line)}
+.readout div{display:flex;flex-direction:column;gap:1px;min-width:0}
+.readout b{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15px;font-weight:650;overflow-wrap:anywhere}
+.readout span{font-size:11.5px;color:var(--muted)}
+.warnline{font-size:13px;color:var(--warn)}
+.sizer{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:end}
+
+/* тейки */
+.take{display:grid;grid-template-columns:30px minmax(0,1fr) 58px 40px 50px 28px;gap:6px;align-items:center}
+.take .tk-n{font-size:12px;font-weight:700;color:var(--muted)}
+.take input{padding:9px 8px}
+.tk-hit{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-weight:700}
+.tk-hit[aria-pressed="true"]{background:var(--profit);border-color:var(--profit);color:#fff}
+.tk-rr{font-family:var(--font-num);font-size:12.5px;text-align:right;color:var(--muted)}
+.tk-del{width:28px;height:28px;border-radius:50%;border:0;background:none;color:var(--muted);font-size:20px;line-height:1}
+.take-head{display:grid;grid-template-columns:30px minmax(0,1fr) 58px 40px 50px 28px;gap:6px;font-size:11px;color:var(--muted)}
+.take-head span:nth-child(5){text-align:right}
+
+/* скриншот */
+.shot{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);max-width:100%}
+.shot img{display:block;width:100%;height:auto}
+.shot button{position:absolute;top:8px;right:8px;border:0;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;padding:6px 10px;font-size:13px}
+.filebtn{position:relative;overflow:hidden;text-align:center}
+.filebtn input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+
+/* журнал */
+.balances{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bal{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.bal .t{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.bal b{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:14.5px;overflow-wrap:anywhere}
+.bal small{font-family:var(--font-num);font-size:12px}
+.t-crypto{color:var(--m-crypto)} .t-stocks{color:var(--m-stocks)} .t-moex{color:var(--m-moex)}
+.filters{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;margin-inline:-2px;padding:2px}
+.filters::-webkit-scrollbar{display:none}
+.filters .chip{white-space:nowrap}
+.search{position:relative}
+.day{font-size:13px;font-weight:650;color:var(--muted);margin:4px 4px -4px;display:flex;justify-content:space-between;gap:8px}
+.trade{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 12px 0;overflow:hidden}
+.trade .stripe{align-self:stretch;margin-block:-12px;width:4px}
+.st-crypto{background:var(--m-crypto)} .st-stocks{background:var(--m-stocks)} .st-moex{background:var(--m-moex)}
+.trade .main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.trade .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.trade .sym{font-weight:700;font-size:16.5px;letter-spacing:-.01em}
+.pill{font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;letter-spacing:.03em;text-transform:uppercase}
+.pill.long{background:var(--profit-bg);color:var(--profit)} .pill.short{background:var(--loss-bg);color:var(--loss)}
+.pill.open{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.pill.demo{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.trade .meta{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trade .res{text-align:right;display:flex;flex-direction:column;gap:2px}
+.trade .res b{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15.5px}
+.trade .res small{font-family:var(--font-num);font-size:12.5px}
+.empty{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 18px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.empty h2{margin:0;font-size:20px;letter-spacing:-.02em}
+.empty p{margin:0;color:var(--muted);max-width:60ch}
+
+/* статистика */
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.tile span{font-size:12px;color:var(--muted)}
+.tile b{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:20px;font-weight:700;letter-spacing:-.03em;overflow-wrap:anywhere}
+.tile small{font-size:12px;color:var(--muted)}
+.tile.wide{grid-column:1/-1}
+.chartbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px}
+.chartbox canvas{width:100%;height:190px;display:block}
+.chartbox .head{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+td:first-child,th:first-child{text-align:left;white-space:normal}
+tr:last-child td{border-bottom:0}
+td.num{font-family:var(--font-num)}
+.wrbar{display:inline-block;width:38px;height:6px;border-radius:3px;background:var(--loss-bg);vertical-align:middle;margin-right:6px;overflow:hidden}
+.wrbar i{display:block;height:100%;background:var(--profit)}
+
+/* настройки */
+.mk-head{display:flex;align-items:center;gap:8px;font-weight:700}
+.dot{width:10px;height:10px;border-radius:50%}
+.note{font-size:13px;color:var(--muted);margin:0;max-width:62ch}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+
+/* прогнозы */
+.istat{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.istat .bal b{font-size:18px}
+.istat .bal .t{font-size:10.5px;letter-spacing:.02em}
+.trade.idea{grid-template-columns:4px minmax(0,1fr)}
+.lv{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:13px;font-family:var(--font-num);font-variant-numeric:tabular-nums;color:var(--muted)}
+.lv b{color:var(--ink);font-weight:600}
+.thumbs{display:flex;gap:6px;overflow:hidden;margin-top:4px}
+.thumb{position:relative;flex:none;width:84px;height:54px;border-radius:7px;overflow:hidden;border:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb i{position:absolute;left:3px;bottom:3px;font-style:normal;font-size:10.5px;font-weight:700;background:rgba(0,0,0,.66);color:#fff;border-radius:4px;padding:1px 4px}
+.pill.st-wait{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.pill.st-entered{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.pill.st-tp{background:var(--profit-bg);color:var(--profit)}
+.pill.st-sl{background:var(--loss-bg);color:var(--loss)}
+.pill.st-cancel{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.seg.small button{font-size:12.5px;padding:8px 2px}
+#iStatus button[aria-pressed="true"][data-v="wait"]{color:var(--accent)}
+#iStatus button[aria-pressed="true"][data-v="entered"]{color:var(--warn)}
+#iStatus button[aria-pressed="true"][data-v="tp"]{color:var(--profit)}
+#iStatus button[aria-pressed="true"][data-v="sl"]{color:var(--loss)}
+.itake{display:grid;grid-template-columns:30px minmax(0,1fr) 64px 28px;gap:6px;align-items:center}
+.itake input{padding:9px 8px}
+.gimg{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--surface2)}
+.gimg .bar{display:flex;gap:8px;align-items:center}
+.gimg .bar select{flex:1;width:auto;background-color:var(--surface);font-weight:650}
+.gimg img{display:block;width:100%;height:auto;border-radius:8px;cursor:zoom-in}
+.gimg input{background:var(--surface)}
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:calc(92px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:30;max-width:calc(100% - 32px);text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#viewer{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.92);display:grid;place-items:center;padding:calc(env(safe-area-inset-top,0px) + 16px) 12px calc(env(safe-area-inset-bottom,0px) + 16px)}
+#viewer img{max-width:100%;max-height:100%;object-fit:contain}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (min-width:700px){.view{max-width:680px;margin-inline:auto;width:100%}.appbar{max-width:680px;margin-inline:auto}.tiles{grid-template-columns:repeat(4,1fr)}}
+</style>
+
+<header class="appbar">
+  <button class="lnk" id="backBtn" type="button" hidden>‹ Назад</button>
+  <h1 id="viewTitle">Журнал</h1>
+  <button class="lnk" id="saveTop" type="button" hidden>Сохранить</button>
+</header>
+
+<main>
+  <!-- ЖУРНАЛ -->
+  <section id="v-journal" class="view">
+    <div class="balances" id="balances"></div>
+    <input id="q" type="search" placeholder="Поиск по инструменту или сетапу" aria-label="Поиск">
+    <div class="filters" id="fMarket"></div>
+    <div id="list" class="view" style="padding:0"></div>
+  </section>
+
+  <!-- ФОРМА СДЕЛКИ -->
+  <section id="v-form" class="view" hidden>
+    <form id="tradeForm" novalidate autocomplete="off" class="view" style="padding:0">
+      <div class="seg seg-market" id="segMarket">
+        <button type="button" data-v="crypto">Крипта</button>
+        <button type="button" data-v="stocks">Акции</button>
+        <button type="button" data-v="moex">ММВБ</button>
+      </div>
+
+      <div class="card">
+        <div class="row2">
+          <label class="fld"><span>Инструмент</span><input id="f-symbol" list="symList" placeholder="BTCUSDT" autocapitalize="characters" spellcheck="false"></label>
+          <div class="fld"><span>Направление</span><div class="seg" id="segDir"><button type="button" data-v="long">Лонг</button><button type="button" data-v="short">Шорт</button></div></div>
+        </div>
+        <div class="row2">
+          <label class="fld"><span>Вход: дата и время</span><input type="datetime-local" id="f-entryAt"><small id="wd-entry"></small></label>
+          <label class="fld"><span>Таймфрейм</span><select id="f-tf"></select></label>
+        </div>
+      </div>
+
+      <h3 class="sec">Цены и объём</h3>
+      <div class="card">
+        <div class="row2">
+          <label class="fld"><span>Цена входа</span><input id="f-entry" inputmode="decimal" placeholder="0"></label>
+          <label class="fld"><span>Стоп-лосс</span><input id="f-stop" inputmode="decimal" placeholder="0"></label>
+        </div>
+        <div class="row2">
+          <label class="fld"><span id="lbl-qty">Объём, монет</span><input id="f-qty" inputmode="decimal" placeholder="0"></label>
+          <label class="fld" data-only="crypto"><span>Плечо, x</span><input id="f-lev" inputmode="decimal" placeholder="10"></label>
+          <label class="fld" data-only="stocks"><span>Акций в лоте</span><input id="f-lot" inputmode="decimal" placeholder="1"></label>
+          <label class="fld" data-only="moex"><span>ГО на контракт, ₽</span><input id="f-go" inputmode="decimal" placeholder="0"></label>
+        </div>
+        <div class="row2" data-only="moex">
+          <label class="fld"><span>Шаг цены</span><input id="f-step" inputmode="decimal" placeholder="1"></label>
+          <label class="fld"><span>Стоимость шага, ₽</span><input id="f-stepCost" inputmode="decimal" placeholder="1"></label>
+        </div>
+        <div class="sizer">
+          <label class="fld"><span>Риск, % депо</span><input id="f-riskPct" inputmode="decimal"></label>
+          <button type="button" class="btn soft" id="calcSize">Рассчитать объём по риску</button>
+        </div>
+        <div class="readout" id="ro-risk"></div>
+        <div class="warnline" id="warn-risk" hidden></div>
+      </div>
+
+      <h3 class="sec">Тейки <small>до пяти · ✓ — исполнен</small></h3>
+      <div class="card">
+        <div class="take-head"><span></span><span>Цена</span><span>% поз.</span><span></span><span>R:R</span><span></span></div>
+        <div id="takes" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button type="button" class="btn ghost small" id="addTake">+ Добавить тейк</button>
+      </div>
+
+      <h3 class="sec">Выход</h3>
+      <div class="card">
+        <div class="seg" id="segStatus"><button type="button" data-v="open">Открыта</button><button type="button" data-v="closed">Закрыта</button></div>
+        <div id="exitBox" class="view" style="padding:0;gap:12px">
+          <div class="row2">
+            <label class="fld"><span>Выход: дата и время</span><input type="datetime-local" id="f-exitAt"><small id="wd-exit"></small></label>
+            <label class="fld"><span id="lbl-exit">Цена выхода</span><input id="f-exit" inputmode="decimal" placeholder="0"><small id="hint-exit"></small></label>
+          </div>
+          <label class="fld"><span>Комиссия вручную (если пусто — по настройкам)</span><input id="f-fee" inputmode="decimal" placeholder="авто"></label>
+          <div class="readout" id="ro-result"></div>
+        </div>
+      </div>
+
+      <h3 class="sec">Сетап и психология</h3>
+      <div class="card">
+        <div class="fld"><span class="lbl">Сетап</span><div class="chips" id="c-setup"></div></div>
+        <div class="fld"><span class="lbl">Эмоции</span><div class="chips" id="c-emo"></div></div>
+        <div class="fld"><span class="lbl">Ошибки</span><div class="chips bad" id="c-mis"></div></div>
+        <label class="fld"><span>Заметки</span><textarea id="f-notes" placeholder="Почему вошла, что увидела, что сделала бы иначе"></textarea></label>
+        <div class="fld"><span class="lbl">Скриншот графика</span>
+          <div id="shotBox"></div>
+          <label class="btn soft filebtn small" id="shotBtn">Добавить скриншот<input type="file" id="f-shot" accept="image/*"></label>
+        </div>
+      </div>
+
+      <div class="btnrow" style="flex-direction:column">
+        <button type="submit" class="btn">Сохранить сделку</button>
+        <button type="button" class="btn soft" id="toIdea" hidden>Открыть прогноз</button>
+        <button type="button" class="btn soft" id="dupBtn" hidden>Дублировать</button>
+        <button type="button" class="btn danger" id="delBtn" hidden>Удалить сделку</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ПРОГНОЗЫ -->
+  <section id="v-ideas" class="view" hidden>
+    <div class="istat" id="ideaStats"></div>
+    <input id="iq" type="search" placeholder="Поиск по тикеру или обоснованию" aria-label="Поиск прогнозов">
+    <div class="filters" id="fIdea"></div>
+    <div id="ideaList" class="view" style="padding:0"></div>
+  </section>
+
+  <!-- ФОРМА ПРОГНОЗА -->
+  <section id="v-idea" class="view" hidden>
+    <form id="ideaForm" novalidate autocomplete="off" class="view" style="padding:0">
+      <div class="seg seg-market" id="iMarket">
+        <button type="button" data-v="crypto">Крипта</button>
+        <button type="button" data-v="stocks">Акции</button>
+        <button type="button" data-v="moex">ММВБ</button>
+      </div>
+      <div class="card">
+        <div class="row2">
+          <label class="fld"><span>Тикер</span><input id="i-symbol" list="symList" placeholder="BTCUSDT" autocapitalize="characters" spellcheck="false"></label>
+          <div class="fld"><span>Направление</span><div class="seg" id="iDir"><button type="button" data-v="long">Лонг</button><button type="button" data-v="short">Шорт</button></div></div>
+        </div>
+        <div class="row2">
+          <label class="fld"><span>Дата прогноза</span><input type="datetime-local" id="i-at"><small id="wd-idea"></small></label>
+          <label class="fld"><span>Рабочий ТФ</span><select id="i-tf"></select></label>
+        </div>
+        <div class="fld"><span class="lbl">Статус</span>
+          <div class="seg small" id="iStatus"><button type="button" data-v="wait">Ждёт</button><button type="button" data-v="entered">Вход</button><button type="button" data-v="tp">Тейк</button><button type="button" data-v="sl">Стоп</button><button type="button" data-v="cancel">Отмена</button></div>
+        </div>
+      </div>
+
+      <h3 class="sec">Уровни</h3>
+      <div class="card">
+        <div class="row2">
+          <label class="fld"><span>ТВХ — точка входа</span><input id="i-entry" inputmode="decimal" placeholder="0"></label>
+          <label class="fld"><span>SL — стоп-лосс</span><input id="i-stop" inputmode="decimal" placeholder="0"></label>
+        </div>
+        <div class="readout" id="ro-idea"></div>
+        <div class="warnline" id="warn-idea" hidden></div>
+        <div id="itakes" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button type="button" class="btn ghost small" id="addITake">+ Добавить тейк</button>
+      </div>
+
+      <h3 class="sec">Обоснование входа</h3>
+      <div class="card">
+        <div class="fld"><span class="lbl">Сетап</span><div class="chips" id="i-setup"></div></div>
+        <label class="fld"><span>Почему здесь вход</span><textarea id="i-why" style="min-height:150px" placeholder="Контекст старшего ТФ, структура, уровень, объёмы, что должно произойти для входа"></textarea></label>
+        <label class="fld"><span>Когда прогноз отменяется</span><input id="i-cancel" placeholder="Например: закрепление 4h ниже 60 400"></label>
+      </div>
+
+      <h3 class="sec">Графики по таймфреймам</h3>
+      <div class="card">
+        <div id="igraphs" class="view" style="padding:0;gap:10px"></div>
+        <label class="btn soft filebtn small">Добавить графики<input type="file" id="i-shots" accept="image/*" multiple></label>
+        <p class="note">Можно выбрать сразу несколько скриншотов. Над каждым выберите его таймфрейм — графики сами встанут по порядку от старшего ТФ к младшему.</p>
+      </div>
+
+      <div id="iResultBox" class="view" style="padding:0">
+        <h3 class="sec">Что получилось</h3>
+        <div class="card"><textarea id="i-result" placeholder="Как отработал прогноз и что учесть в следующий раз"></textarea></div>
+      </div>
+
+      <div class="btnrow" style="flex-direction:column">
+        <button type="submit" class="btn">Сохранить прогноз</button>
+        <button type="button" class="btn soft" id="toTrade">Открыть сделку по прогнозу</button>
+        <button type="button" class="btn danger" id="delIdea" hidden>Удалить прогноз</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="v-stats" class="view" hidden></section>
+  <section id="v-settings" class="view" hidden></section>
+</main>
+
+<datalist id="symList"></datalist>
+
+<nav class="tabbar" aria-label="Разделы">
+  <button class="tab" data-tab="journal" type="button"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg>Журнал</button>
+  <button class="tab" data-tab="ideas" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Прогнозы</button>
+  <button class="tab-add" id="addBtn" type="button" aria-label="Новая сделка"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="tab" data-tab="stats" type="button"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Статистика</button>
+  <button class="tab" data-tab="settings" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Настройки</button>
+</nav>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="viewer" hidden><img alt="Скриншот сделки"></div>
+
+<script>
+'use strict';
+/*CALC-START*/
+const MARKETS = { crypto: 'Крипта', stocks: 'Акции', moex: 'ММВБ' };
+const WD = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const WDS = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const DEFAULTS = {
+  v: 1,
+  markets: {
+    crypto: { deposit: 1000, cur: 'USDT', feePct: 0.05, mmr: 0.5, lev: 10 },
+    stocks: { deposit: 10000, cur: '$', feePct: 0.05 },
+    moex:   { deposit: 300000, cur: '₽', feeRub: 2 }
+  },
+  riskPct: 1,
+  setups: ['Пробой','Ложный пробой','Ретест уровня','Отбой от уровня','Переприор','Сбор ликвидности','По тренду','Контртренд'],
+  tfs: ['1m','5m','15m','30m','1h','4h','1D','1W'],
+  emotions: ['Спокойствие','Уверенность','Сомнение','Страх','Жадность','FOMO','Нетерпение','Усталость','Азарт'],
+  mistakes: ['Вход без сетапа','Без стопа','Сдвинула стоп','Рано закрыла','Пересидела убыток','Завышенный объём','Отыгрыш','Против тренда','Не по плану'],
+  specs: { 'SI': { step: '1', stepCost: '1', go: '' }, 'BR': { step: '0.01', stepCost: '', go: '' }, 'RI': { step: '10', stepCost: '', go: '' } },
+  lots: {}
+};
+let S = JSON.parse(JSON.stringify(DEFAULTS));
+
+const num = v => { if (v == null) return NaN; const s = String(v).replace(/\s/g, '').replace(',', '.'); return s === '' ? NaN : Number(s); };
+const ok = n => typeof n === 'number' && Number.isFinite(n);
+
+/* стоимость 1 пункта цены на 1 единицу объёма */
+function pointValue(t) {
+  if (t.market === 'moex') { const st = num(t.step), sc = num(t.stepCost); return st > 0 && ok(sc) ? sc / st : NaN; }
+  if (t.market === 'stocks') { const l = num(t.lot); return l > 0 ? l : 1; }
+  return 1;
+}
+
+function calc(t, settings) {
+  const st = settings || S;
+  const m = st.markets[t.market];
+  const dir = t.dir === 'short' ? -1 : 1;
+  const entry = num(t.entry), stop = num(t.stop), qty = num(t.qty), P = pointValue(t);
+  const k = ok(qty) && ok(P) ? qty * P : NaN;          // деньги за 1 пункт движения всей позиции
+  const dep = num(t.dep) > 0 ? num(t.dep) : m.deposit;
+  const r = { dir, entry, stop, qty, k, dep, P };
+  r.stopDist = ok(entry) && ok(stop) ? Math.abs(entry - stop) : NaN;
+  r.stopWrong = ok(entry) && ok(stop) && (dir > 0 ? stop >= entry : stop <= entry);
+  r.risk = ok(r.stopDist) && ok(k) ? r.stopDist * k : NaN;
+  r.riskPct = ok(r.risk) && dep > 0 ? r.risk / dep * 100 : NaN;
+  r.notional = ok(entry) && ok(k) ? entry * k : NaN;
+  if (t.market === 'crypto') {
+    const lev = num(t.lev) > 0 ? num(t.lev) : 1; r.lev = lev;
+    r.margin = r.notional / lev;
+    const mmr = (m.mmr || 0) / 100;
+    r.liq = ok(entry) ? (dir > 0 ? entry * (1 - 1 / lev + mmr) : entry * (1 + 1 / lev - mmr)) : NaN;
+    r.liqBeforeStop = ok(r.liq) && ok(stop) && (dir > 0 ? r.liq >= stop : r.liq <= stop);
+  } else if (t.market === 'moex') {
+    const go = num(t.go); r.margin = ok(go) && ok(qty) ? go * qty : NaN;
+  } else r.margin = r.notional;
+
+  const takes = (t.takes || []).map(x => ({ price: num(x.price), pct: num(x.pct), hit: !!x.hit }));
+  r.takes = takes.map(x => ({ ...x, rr: ok(x.price) && r.stopDist > 0 ? (x.price - entry) * dir / r.stopDist : NaN }));
+  const hits = takes.filter(x => x.hit && ok(x.price) && x.pct > 0);
+  const hitRaw = hits.reduce((a, x) => a + x.pct, 0);
+  let sum = hits.reduce((a, x) => a + x.price * x.pct, 0);
+  if (hitRaw > 100) sum = sum * 100 / hitRaw;
+  r.hitPct = Math.min(100, hitRaw);
+  r.rem = Math.max(0, 100 - r.hitPct);
+  const exit = num(t.exit);
+  r.complete = t.status === 'closed' && ok(entry) && ok(k) && k > 0 && (r.rem <= 1e-9 || ok(exit));
+  if (r.complete) {
+    r.avgExit = (sum + (r.rem > 0 ? exit * r.rem : 0)) / 100;
+    r.gross = (r.avgExit - entry) * dir * k;
+    const fm = num(t.fee);
+    if (ok(fm)) r.fees = fm;
+    else if (t.market === 'moex') r.fees = (m.feeRub || 0) * qty * 2;
+    else r.fees = (entry * k + r.avgExit * k) * (m.feePct || 0) / 100;
+    r.net = r.gross - r.fees;
+    r.R = r.risk > 0 ? r.net / r.risk : NaN;
+    r.depPct = dep > 0 ? r.net / dep * 100 : NaN;
+    if (t.market === 'crypto') r.roe = r.margin > 0 ? r.net / r.margin * 100 : NaN;
+  }
+  const a = t.entryAt ? new Date(t.entryAt) : null, b = t.exitAt ? new Date(t.exitAt) : null;
+  r.dur = a && b && !isNaN(a) && !isNaN(b) ? b - a : NaN;
+  return r;
+}
+
+/* объём под риск: сколько единиц можно взять, чтобы стоп = riskPct % депозита */
+function sizeForRisk(t, riskPct, dep) {
+  const entry = num(t.entry), stop = num(t.stop), P = pointValue(t);
+  if (!ok(entry) || !ok(stop) || entry === stop || !ok(P) || !(riskPct > 0) || !(dep > 0)) return NaN;
+  const raw = dep * riskPct / 100 / (Math.abs(entry - stop) * P);
+  if (t.market === 'crypto') return Math.floor(raw * 1000) / 1000;
+  return Math.floor(raw);
+}
+/*CALC-END*/
+
+/* ---------- хранилище: IndexedDB с запасным вариантом в памяти ---------- */
+const DB = {
+  db: null, ok: false, mem: { trades: new Map(), ideas: new Map(), kv: new Map() },
+  async open() {
+    try {
+      this.db = await new Promise((res, rej) => {
+        const r = indexedDB.open('trade-journal', 2);
+        r.onupgradeneeded = () => {
+          const d = r.result;
+          if (!d.objectStoreNames.contains('trades')) d.createObjectStore('trades', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('ideas')) d.createObjectStore('ideas', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
+        };
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      });
+      this.ok = true;
+    } catch (e) { this.ok = false; }
+  },
+  tx(store, mode, fn) {
+    return new Promise((res, rej) => {
+      const t = this.db.transaction(store, mode); const req = fn(t.objectStore(store));
+      t.oncomplete = () => res(req ? req.result : undefined); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+    });
+  },
+  async all(st = 'trades') { if (!this.ok) return [...this.mem[st].values()]; try { return await this.tx(st, 'readonly', s => s.getAll()); } catch (e) { return []; } },
+  async put(a, b) { const [st, v] = b === undefined ? ['trades', a] : [a, b]; if (!this.ok) { this.mem[st].set(v.id, v); return; } return this.tx(st, 'readwrite', s => s.put(v)); },
+  async del(a, b) { const [st, id] = b === undefined ? ['trades', a] : [a, b]; if (!this.ok) { this.mem[st].delete(id); return; } return this.tx(st, 'readwrite', s => s.delete(id)); },
+  async get(k) { if (!this.ok) return this.mem.kv.get(k); try { return await this.tx('kv', 'readonly', s => s.get(k)); } catch (e) { return undefined; } },
+  async set(k, v) { if (!this.ok) { this.mem.kv.set(k, v); return; } return this.tx('kv', 'readwrite', s => s.put(v, k)); }
+};
+
+/* ---------- утилиты ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const localISO = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+const cur = m => S.markets[m].cur;
+function fmtN(n, d = 2) { return ok(n) ? n.toLocaleString('ru-RU', { maximumFractionDigits: d }) : '—'; }
+function fmtPrice(n) { if (!ok(n)) return '—'; const a = Math.abs(n); return n.toLocaleString('ru-RU', { maximumFractionDigits: a >= 1000 ? 2 : a >= 1 ? 4 : 8 }); }
+function money(n, c, sign = true) {
+  if (!ok(n)) return '—';
+  const s = Math.abs(n).toLocaleString('ru-RU', { maximumFractionDigits: Math.abs(n) >= 100 ? 0 : 2 });
+  return (n < 0 ? '−' : (sign && n > 0 ? '+' : '')) + s + (c ? ' ' + c : '');
+}
+function fmtR(r) { return ok(r) ? (r < 0 ? '−' : r > 0 ? '+' : '') + Math.abs(r).toFixed(2) + 'R' : '—'; }
+function pct(n, sign = false) { return ok(n) ? (n < 0 ? '−' : sign && n > 0 ? '+' : '') + Math.abs(n).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + '%' : '—'; }
+const cls = n => ok(n) ? (n > 0 ? 'pos' : n < 0 ? 'neg' : '') : 'mut';
+function wdOf(s) { if (!s) return ''; const d = new Date(s); return isNaN(d) ? '' : WD[d.getDay()]; }
+function dur(ms) {
+  if (!ok(ms) || ms < 0) return '—';
+  const m = Math.round(ms / 60000); if (m < 60) return m + ' мин';
+  const h = Math.floor(m / 60); if (h < 24) return h + ' ч ' + (m % 60) + ' мин';
+  const d = Math.floor(h / 24); return d + ' д ' + (h % 24) + ' ч';
+}
+function dayLabel(s) {
+  const d = new Date(s); if (isNaN(d)) return 'Без даты';
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }) + ', ' + WD[d.getDay()];
+}
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
+
+/* ---------- состояние ---------- */
+let TR = [], IDEAS = [], TOMBS = {}, LASTSYNC = null;
+const ver = r => r.updated || r.created || 0;
+function tomb(st, id) { TOMBS[st + ':' + id] = Date.now(); DB.set('deleted', TOMBS); }
+const UI = { tab: 'journal', fm: 'all', fo: false, q: '', sm: 'all', sp: 'all', editing: null, shot: null, prevTab: 'journal', iq: '', if: 'active', editingIdea: null, igraphs: [], fromIdea: null, formIdea: null };
+
+function balance(market, exceptId) {
+  let b = S.markets[market].deposit;
+  for (const t of TR) if (t.market === market && t.id !== exceptId) { const r = calc(t); if (r.complete) b += r.net; }
+  return b;
+}
+
+/* ---------- навигация ---------- */
+function show(tab) {
+  if (tab !== 'form' && tab !== 'idea') UI.prevTab = tab;
+  UI.tab = tab;
+  const map = { journal: 'v-journal', ideas: 'v-ideas', stats: 'v-stats', settings: 'v-settings', form: 'v-form', idea: 'v-idea' };
+  $$('main > section').forEach(s => s.hidden = s.id !== map[tab]);
+  $$('.tab').forEach(b => { if (b.dataset.tab === tab || (tab === 'idea' && b.dataset.tab === 'ideas')) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  const titles = { journal: 'Журнал', ideas: 'Прогнозы', stats: 'Статистика', settings: 'Настройки', form: UI.editing ? 'Сделка' : 'Новая сделка', idea: UI.editingIdea ? 'Прогноз' : 'Новый прогноз' };
+  $('#viewTitle').textContent = titles[tab];
+  const isForm = tab === 'form' || tab === 'idea';
+  $('#backBtn').hidden = !isForm; $('#saveTop').hidden = !isForm;
+  $('#addBtn').setAttribute('aria-label', tab === 'ideas' || tab === 'idea' ? 'Новый прогноз' : 'Новая сделка');
+  if (tab === 'journal') renderJournal();
+  if (tab === 'ideas') renderIdeas();
+  if (tab === 'stats') renderStats();
+  if (tab === 'settings') renderSettings();
+  window.scrollTo(0, 0);
+}
+
+/* ---------- журнал ---------- */
+function renderJournal() {
+  const onlyOpen = UI.fo;
+  $('#balances').innerHTML = Object.keys(MARKETS).map(m => {
+    const b = balance(m), d = b - S.markets[m].deposit;
+    return `<div class="bal"><span class="t t-${m}">${MARKETS[m]}</span><b>${fmtN(b, b >= 1000 ? 0 : 2)} ${esc(cur(m))}</b><small class="${cls(d)}">${money(d, '', true)}</small></div>`;
+  }).join('');
+  const fm = [['all', 'Все'], ...Object.entries(MARKETS)];
+  $('#fMarket').innerHTML = fm.map(([k, v]) => `<button type="button" class="chip" data-fm="${k}" aria-pressed="${UI.fm === k}">${v}</button>`).join('') + `<button type="button" class="chip" data-fo="1" aria-pressed="${UI.fo}">Только открытые</button>`;
+  const q = UI.q.trim().toLowerCase();
+  let list = TR.filter(t => (UI.fm === 'all' || t.market === UI.fm) && (!onlyOpen || t.status !== 'closed') &&
+    (!q || (t.symbol || '').toLowerCase().includes(q) || (t.setup || '').toLowerCase().includes(q) || (t.notes || '').toLowerCase().includes(q)));
+  list.sort((a, b) => String(b.entryAt || '').localeCompare(String(a.entryAt || '')));
+  const box = $('#list');
+  if (!TR.length) {
+    box.innerHTML = `<div class="empty"><h2>Журнал пока пуст</h2><p>Нажмите «+» внизу, чтобы записать первую сделку: рынок, вход, стоп, до пяти тейков, эмоции и скриншот. Расчёт риска, R:R и результата появится сразу.</p><p>Хотите сначала посмотреть, как всё выглядит? Загрузите демо-сделки — их потом можно удалить одной кнопкой в настройках.</p><div class="btnrow"><button type="button" class="btn" data-act="new">Новая сделка</button><button type="button" class="btn soft" data-act="demo">Загрузить демо</button></div></div>`;
+    return;
+  }
+  if (!list.length) { box.innerHTML = `<div class="empty"><p>${onlyOpen ? 'Открытых сделок нет.' : 'Ничего не найдено по фильтру.'}</p></div>`; return; }
+  let html = '', lastDay = '';
+  for (const t of list) {
+    const day = (t.entryAt || '').slice(0, 10);
+    if (day !== lastDay) {
+      const dayNet = {}; list.filter(x => (x.entryAt || '').slice(0, 10) === day).forEach(x => { const r = calc(x); if (r.complete) dayNet[x.market] = (dayNet[x.market] || 0) + r.net; });
+      html += `<div class="day"><span>${dayLabel(t.entryAt)}</span><span class="num">${Object.entries(dayNet).map(([m, v]) => `<span class="${cls(v)}">${money(v, cur(m))}</span>`).join(' · ')}</span></div>`;
+      lastDay = day;
+    }
+    const r = calc(t);
+    const time = t.entryAt ? t.entryAt.slice(11, 16) : '';
+    const right = r.complete
+      ? `<b class="${cls(r.net)}">${money(r.net, cur(t.market))}</b><small class="${cls(r.R)}">${fmtR(r.R)}</small>`
+      : `<span class="pill open">открыта</span><small class="mut">риск ${pct(r.riskPct)}</small>`;
+    html += `<button type="button" class="trade" data-id="${t.id}"><span class="stripe st-${t.market}"></span>
+      <span class="main"><span class="top"><span class="sym">${esc(t.symbol || '—')}</span><span class="pill ${t.dir}">${t.dir === 'short' ? 'шорт' : 'лонг'}</span>${t.demo ? '<span class="pill demo">демо</span>' : ''}</span>
+      <span class="meta">${time} · ${MARKETS[t.market]}${t.tf ? ' · ' + esc(t.tf) : ''}${t.setup ? ' · ' + esc(t.setup) : ''}</span></span>
+      <span class="res">${right}</span></button>`;
+  }
+  box.innerHTML = html;
+}
+
+/* ---------- форма ---------- */
+function segSet(id, v) { $$('#' + id + ' button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); }
+function segGet(id) { const b = $('#' + id + ' button[aria-pressed="true"]'); return b ? b.dataset.v : null; }
+function chipsRender(id, items, selected, multi) {
+  const sel = new Set(multi ? selected || [] : [selected].filter(Boolean));
+  const all = [...items]; sel.forEach(s => { if (!all.includes(s)) all.push(s); });
+  $('#' + id).innerHTML = all.map(x => `<button type="button" class="chip" data-v="${esc(x)}" aria-pressed="${sel.has(x)}">${esc(x)}</button>`).join('');
+  $('#' + id).dataset.multi = multi ? '1' : '';
+}
+function chipsGet(id) { return $$('#' + id + ' .chip[aria-pressed="true"]').map(b => b.dataset.v); }
+
+function takeRow(tk = {}) {
+  const d = document.createElement('div'); d.className = 'take';
+  d.innerHTML = `<span class="tk-n"></span><input class="tk-price" inputmode="decimal" placeholder="Цена" value="${esc(tk.price ?? '')}"><input class="tk-pct" inputmode="decimal" placeholder="%" value="${esc(tk.pct ?? '')}"><button type="button" class="tk-hit" aria-pressed="${!!tk.hit}" aria-label="Тейк исполнен">✓</button><span class="tk-rr">—</span><button type="button" class="tk-del" aria-label="Удалить тейк">×</button>`;
+  return d;
+}
+function renumberTakes() {
+  $$('#takes .take').forEach((r, i) => $('.tk-n', r).textContent = 'TP' + (i + 1));
+  $('#addTake').hidden = $$('#takes .take').length >= 5;
+}
+
+function openForm(t, dup, pre) {
+  const isNew = !t || dup;
+  const base = t ? JSON.parse(JSON.stringify(t)) : null;
+  const lastMarket = (TR[0] && TR.slice().sort((a, b) => (b.created || 0) - (a.created || 0))[0].market) || 'crypto';
+  const d = base || pre || { market: lastMarket, dir: 'long', status: 'open', takes: [{}], tf: '', emotions: [], mistakes: [] };
+  if (dup) { d.status = 'open'; d.exit = ''; d.exitAt = ''; d.fee = ''; d.shot = null; d.takes = (d.takes || []).map(x => ({ ...x, hit: false })); delete d.dep; delete d.demo; delete d.ideaId; }
+  if (isNew) { d.entryAt = localISO(); }
+  UI.editing = isNew ? null : t.id;
+  UI.fromIdea = pre ? pre.ideaId : null; UI.formIdea = d.ideaId || null;
+  UI.shot = d.shot || null;
+  segSet('segMarket', d.market); segSet('segDir', d.dir || 'long'); segSet('segStatus', d.status || 'open');
+  $('#f-symbol').value = d.symbol || '';
+  $('#f-entryAt').value = d.entryAt || ''; $('#f-exitAt').value = d.exitAt || '';
+  ['entry', 'stop', 'qty', 'lot', 'go', 'step', 'stepCost', 'exit', 'fee'].forEach(k => $('#f-' + k).value = d[k] ?? '');
+  $('#f-lev').value = d.lev ?? (isNew ? S.markets.crypto.lev : '');
+  $('#f-riskPct').value = S.riskPct;
+  $('#f-tf').innerHTML = '<option value="">—</option>' + S.tfs.map(x => `<option ${x === d.tf ? 'selected' : ''}>${esc(x)}</option>`).join('') + (d.tf && !S.tfs.includes(d.tf) ? `<option selected>${esc(d.tf)}</option>` : '');
+  $('#f-notes').value = d.notes || '';
+  $('#takes').innerHTML = ''; (d.takes && d.takes.length ? d.takes : [{}]).slice(0, 5).forEach(x => $('#takes').appendChild(takeRow(x))); renumberTakes();
+  chipsRender('c-setup', S.setups, d.setup, false);
+  chipsRender('c-emo', S.emotions, d.emotions, true);
+  chipsRender('c-mis', S.mistakes, d.mistakes, true);
+  $('#delBtn').hidden = isNew; $('#dupBtn').hidden = isNew; resetDel();
+  $('#toIdea').hidden = !(UI.formIdea && IDEAS.some(x => x.id === UI.formIdea));
+  $('#symList').innerHTML = [...new Set([...TR, ...IDEAS].map(x => x.symbol).filter(Boolean))].map(s => `<option value="${esc(s)}">`).join('');
+  renderShot(); applyMarket(); fillSpecs(); show('form'); updateCalc();
+}
+
+function readForm() {
+  const prev = UI.editing ? TR.find(x => x.id === UI.editing) : null;
+  const t = {
+    id: UI.editing || uid(), created: prev ? prev.created : Date.now(), ideaId: prev ? prev.ideaId : (UI.fromIdea || undefined), updated: Date.now(),
+    market: segGet('segMarket') || 'crypto', dir: segGet('segDir') || 'long', status: segGet('segStatus') || 'open',
+    symbol: $('#f-symbol').value.trim().toUpperCase(), entryAt: $('#f-entryAt').value, exitAt: $('#f-exitAt').value,
+    tf: $('#f-tf').value, notes: $('#f-notes').value.trim(),
+    setup: chipsGet('c-setup')[0] || '', emotions: chipsGet('c-emo'), mistakes: chipsGet('c-mis'),
+    takes: $$('#takes .take').map(r => ({ price: $('.tk-price', r).value.trim(), pct: $('.tk-pct', r).value.trim(), hit: $('.tk-hit', r).getAttribute('aria-pressed') === 'true' })).filter(x => x.price || x.pct),
+    shot: UI.shot
+  };
+  ['entry', 'stop', 'qty', 'exit', 'fee'].forEach(k => t[k] = $('#f-' + k).value.trim());
+  if (t.market === 'crypto') t.lev = $('#f-lev').value.trim();
+  if (t.market === 'stocks') t.lot = $('#f-lot').value.trim();
+  if (t.market === 'moex') { t.step = $('#f-step').value.trim(); t.stepCost = $('#f-stepCost').value.trim(); t.go = $('#f-go').value.trim(); }
+  t.dep = prev && prev.dep ? prev.dep : balance(t.market, t.id);
+  if (prev && prev.demo) t.demo = true;
+  return t;
+}
+
+function applyMarket() {
+  const m = segGet('segMarket');
+  $$('#v-form [data-only]').forEach(el => el.hidden = el.dataset.only !== m);
+  $('#lbl-qty').textContent = { crypto: 'Объём, монет', stocks: 'Количество лотов', moex: 'Контрактов' }[m];
+  $('#f-symbol').placeholder = { crypto: 'BTCUSDT', stocks: 'AAPL', moex: 'Si' }[m];
+  if (m === 'crypto' && !$('#f-lev').value) $('#f-lev').value = S.markets.crypto.lev;
+}
+function fillSpecs() {
+  const m = segGet('segMarket'), sym = $('#f-symbol').value.trim().toUpperCase(); if (!sym) return;
+  if (m === 'moex') {
+    const sp = S.specs[sym] || S.specs[sym.replace(/[-\d.]+$/, '').replace(/[FGHJKMNQUVXZ]\d$/, '')];
+    if (sp) { if (!$('#f-step').value) $('#f-step').value = sp.step || ''; if (!$('#f-stepCost').value) $('#f-stepCost').value = sp.stepCost || ''; if (!$('#f-go').value) $('#f-go').value = sp.go || ''; }
+  }
+  if (m === 'stocks' && S.lots[sym] && !$('#f-lot').value) $('#f-lot').value = S.lots[sym];
+}
+
+function updateCalc() {
+  const t = readForm(); const r = calc(t); const c = cur(t.market);
+  $('#wd-entry').textContent = wdOf(t.entryAt); $('#wd-exit').textContent = wdOf(t.exitAt);
+  const cells = [
+    ['Риск', ok(r.risk) ? money(-r.risk, c).replace('−', '') : '—'],
+    ['Риск от депо', pct(r.riskPct)],
+    ['Стоп, пунктов', ok(r.stopDist) ? fmtPrice(r.stopDist) + (ok(r.entry) && r.entry ? ' · ' + pct(r.stopDist / r.entry * 100) : '') : '—'],
+    ['Объём позиции', ok(r.notional) ? fmtN(r.notional, 2) + ' ' + c : '—']
+  ];
+  if (t.market === 'crypto') cells.push(['Маржа (x' + fmtN(r.lev, 1) + ')', ok(r.margin) ? fmtN(r.margin, 2) + ' ' + c : '—'], ['Ликвидация ≈', fmtPrice(r.liq)]);
+  if (t.market === 'moex') cells.push(['ГО всего', ok(r.margin) ? fmtN(r.margin, 0) + ' ₽' : '—'], ['1 пункт =', ok(r.k) ? fmtN(r.k, 2) + ' ₽' : '—']);
+  if (t.market === 'stocks') cells.push(['Акций всего', ok(r.k) ? fmtN(r.k, 0) : '—']);
+  $('#ro-risk').innerHTML = cells.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  const w = [];
+  if (r.stopWrong) w.push('Стоп стоит не с той стороны от входа — проверьте направление.');
+  if (ok(r.riskPct) && r.riskPct > S.riskPct * 2) w.push('Риск больше плана в ' + fmtN(r.riskPct / S.riskPct, 1) + ' раза.');
+  if (r.liqBeforeStop) w.push('Ликвидация наступит раньше стопа — уменьшите плечо.');
+  if (t.market === 'moex' && !(num(t.stepCost) > 0)) w.push('Укажите шаг цены и его стоимость — без них риск и результат не посчитать.');
+  $('#warn-risk').hidden = !w.length; $('#warn-risk').innerHTML = w.map(esc).join('<br>');
+
+  $$('#takes .take').forEach(row => {
+    const p = num($('.tk-price', row).value); const rr = ok(p) && r.stopDist > 0 ? (p - r.entry) * r.dir / r.stopDist : NaN;
+    $('.tk-rr', row).textContent = ok(rr) ? '1:' + fmtN(rr, 2) : '—';
+  });
+
+  const closed = t.status === 'closed';
+  $('#exitBox').hidden = !closed;
+  $('#lbl-exit').textContent = r.hitPct > 0 && r.rem > 0 ? 'Выход остатка ' + fmtN(r.rem, 1) + '%' : 'Цена выхода';
+  $('#f-exit').disabled = r.hitPct >= 100;
+  $('#hint-exit').textContent = r.hitPct >= 100 ? 'Вся позиция закрыта тейками' : '';
+  if (closed) {
+    if (!r.complete) { $('#ro-result').innerHTML = '<div><span>Результат</span><b class="mut">укажите цену выхода</b></div>'; }
+    else {
+      const res = [
+        ['Итог', `<span class="${cls(r.net)}">${money(r.net, c)}</span>`],
+        ['Результат в R', `<span class="${cls(r.R)}">${fmtR(r.R)}</span>`],
+        ['Средний выход', fmtPrice(r.avgExit)],
+        ['До комиссии', money(r.gross, c)],
+        ['Комиссия', money(-r.fees, c)],
+        ['От депозита', `<span class="${cls(r.depPct)}">${pct(r.depPct, true)}</span>`]
+      ];
+      if (t.market === 'crypto') res.push(['ROE на маржу', `<span class="${cls(r.roe)}">${pct(r.roe, true)}</span>`]);
+      if (ok(r.dur)) res.push(['В сделке', dur(r.dur)]);
+      $('#ro-result').innerHTML = res.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+    }
+  }
+}
+
+function resetDel() { const b = $('#delBtn'); b.dataset.armed = ''; b.textContent = 'Удалить сделку'; }
+
+async function saveForm() {
+  const t = readForm();
+  const bad = [];
+  if (!t.symbol) bad.push('f-symbol');
+  if (!ok(num(t.entry))) bad.push('f-entry');
+  if (!(num(t.qty) > 0)) bad.push('f-qty');
+  $$('#v-form input.bad').forEach(i => i.classList.remove('bad'));
+  if (bad.length) { bad.forEach(id => $('#' + id).classList.add('bad')); $('#' + bad[0]).focus(); toast('Заполните инструмент, цену входа и объём'); return; }
+  if (t.status === 'closed' && !t.exitAt) t.exitAt = localISO();
+  if (t.market === 'moex' && t.symbol) S.specs[t.symbol] = { step: t.step, stepCost: t.stepCost, go: t.go };
+  if (t.market === 'stocks' && t.symbol && t.lot) S.lots[t.symbol] = t.lot;
+  if (t.market === 'crypto' && num(t.lev) > 0) S.markets.crypto.lev = num(t.lev);
+  await saveSettings();
+  await DB.put(t);
+  const i = TR.findIndex(x => x.id === t.id); if (i >= 0) TR[i] = t; else TR.push(t);
+  if (t.ideaId) {
+    const idea = IDEAS.find(x => x.id === t.ideaId);
+    if (idea) {
+      idea.tradeId = t.id; idea.updated = Date.now();
+      if (idea.status === 'wait') idea.status = 'entered';
+      const r = calc(t); if (t.status === 'closed' && r.complete && idea.status === 'entered') idea.status = r.net >= 0 ? 'tp' : 'sl';
+      await DB.put('ideas', idea);
+    }
+  }
+  toast(UI.editing ? 'Сделка обновлена' : 'Сделка сохранена');
+  UI.editing = null; show(UI.prevTab === 'stats' || UI.prevTab === 'settings' ? 'journal' : UI.prevTab);
+}
+
+/* скриншот: сжимаем до 1400 px, JPEG */
+function compressImage(file) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1400, sc = Math.min(1, max / Math.max(img.width, img.height));
+        const cv = document.createElement('canvas'); cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        res(cv.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = rej; img.src = fr.result;
+    };
+    fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+function renderShot() {
+  $('#shotBox').innerHTML = UI.shot ? `<div class="shot"><img src="${UI.shot}" alt="Скриншот графика" data-act="zoom"><button type="button" data-act="rmshot">Убрать</button></div>` : '';
+  $('#shotBtn').firstChild.textContent = UI.shot ? 'Заменить скриншот' : 'Добавить скриншот';
+}
+
+/* ---------- статистика ---------- */
+function periodOk(t) {
+  if (UI.sp === 'all') return true;
+  const d = new Date(t.exitAt || t.entryAt); if (isNaN(d)) return false;
+  const now = new Date();
+  if (UI.sp === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  if (UI.sp === 'year') return d.getFullYear() === now.getFullYear();
+  return now - d <= Number(UI.sp) * 864e5;
+}
+function groupBy(rows, keyFn) {
+  const g = new Map();
+  for (const x of rows) {
+    let keys = keyFn(x); if (!Array.isArray(keys)) keys = [keys];
+    for (const k of keys) { if (k == null || k === '') continue; const e = g.get(k) || { k, n: 0, w: 0, R: 0, net: 0, nR: 0 }; e.n++; if (x.r.net > 0) e.w++; if (ok(x.r.R)) { e.R += x.r.R; e.nR++; } e.net += x.r.net; g.set(k, e); }
+  }
+  return [...g.values()];
+}
+function renderStats() {
+  const single = UI.sm !== 'all';
+  const rows = TR.filter(t => (!single || t.market === UI.sm) && periodOk(t)).map(t => ({ t, r: calc(t) })).filter(x => x.r.complete)
+    .sort((a, b) => String(a.t.exitAt || a.t.entryAt).localeCompare(String(b.t.exitAt || b.t.entryAt)));
+  const c = single ? cur(UI.sm) : '';
+  const head = `<div class="seg seg-market" id="segSM">${[['all', 'Все'], ...Object.entries(MARKETS)].map(([k, v]) => `<button type="button" data-v="${k}" aria-pressed="${UI.sm === k}">${v}</button>`).join('')}</div>
+    <div class="filters">${[['all', 'Всё время'], ['month', 'Этот месяц'], ['30', '30 дней'], ['90', '90 дней'], ['year', 'Этот год']].map(([k, v]) => `<button type="button" class="chip" data-sp="${k}" aria-pressed="${UI.sp === k}">${v}</button>`).join('')}</div>`;
+  if (!rows.length) { $('#v-stats').innerHTML = head + `<div class="empty"><h2>Нет закрытых сделок</h2><p>Статистика считается по закрытым сделкам с ценой выхода. Смените фильтр или закройте сделку в журнале.</p></div>`; return; }
+  const wins = rows.filter(x => x.r.net > 0), losses = rows.filter(x => x.r.net < 0);
+  const withR = rows.filter(x => ok(x.r.R));
+  const sumR = withR.reduce((a, x) => a + x.r.R, 0);
+  const gp = wins.reduce((a, x) => a + (single ? x.r.net : (x.r.R || 0)), 0), gl = -losses.reduce((a, x) => a + (single ? x.r.net : (x.r.R || 0)), 0);
+  const pf = gl > 0 ? gp / gl : (gp > 0 ? Infinity : NaN);
+  const series = []; let acc = 0, peak = 0, mdd = 0;
+  for (const x of rows) { acc += single ? x.r.net : (ok(x.r.R) ? x.r.R : 0); series.push(acc); peak = Math.max(peak, acc); mdd = Math.max(mdd, peak - acc); }
+  const val = v => single ? money(v, c) : fmtR(v);
+  const avgW = wins.length ? wins.reduce((a, x) => a + (single ? x.r.net : x.r.R || 0), 0) / wins.length : NaN;
+  const avgL = losses.length ? losses.reduce((a, x) => a + (single ? x.r.net : x.r.R || 0), 0) / losses.length : NaN;
+  const durs = rows.map(x => x.r.dur).filter(ok);
+  const best = rows.reduce((a, x) => (x.r.R ?? -1e9) > (a.r.R ?? -1e9) ? x : a, rows[0]);
+  const worst = rows.reduce((a, x) => (x.r.R ?? 1e9) < (a.r.R ?? 1e9) ? x : a, rows[0]);
+  let tiles = `<div class="tiles">
+    <div class="tile"><span>${single ? 'Чистый результат' : 'Сумма R'}</span><b class="${cls(acc)}">${val(acc)}</b><small>${single ? pct((acc) / S.markets[UI.sm].deposit * 100, true) + ' к депозиту' : 'все рынки в единицах риска'}</small></div>
+    <div class="tile"><span>Винрейт</span><b>${pct(wins.length / rows.length * 100)}</b><small>${wins.length} из ${rows.length} сделок</small></div>
+    <div class="tile"><span>Средний R</span><b class="${cls(sumR)}">${fmtR(withR.length ? sumR / withR.length : NaN)}</b><small>матожидание на сделку</small></div>
+    <div class="tile"><span>Профит-фактор</span><b>${pf === Infinity ? '∞' : fmtN(pf, 2)}</b><small>прибыль / убытки</small></div>
+    <div class="tile"><span>Средняя прибыль</span><b class="pos">${val(avgW)}</b><small>средний убыток <span class="neg">${val(avgL)}</span></small></div>
+    <div class="tile"><span>Макс. просадка</span><b class="neg">${single ? money(-mdd, c) : fmtR(-mdd)}</b><small>от пика кривой</small></div>
+    <div class="tile"><span>Лучшая / худшая</span><b><span class="pos">${fmtR(best.r.R)}</span> <span class="mut">/</span> <span class="neg">${fmtR(worst.r.R)}</span></b><small>${esc(best.t.symbol)} · ${esc(worst.t.symbol)}</small></div>
+    <div class="tile"><span>Среднее время в сделке</span><b>${durs.length ? dur(durs.reduce((a, b) => a + b, 0) / durs.length) : '—'}</b><small>от входа до выхода</small></div>`;
+  if (!single) {
+    tiles += Object.keys(MARKETS).map(m => { const v = rows.filter(x => x.t.market === m).reduce((a, x) => a + x.r.net, 0); const n = rows.filter(x => x.t.market === m).length; return n ? `<div class="tile"><span class="t-${m}" style="font-weight:700">${MARKETS[m]}</span><b class="${cls(v)}">${money(v, cur(m))}</b><small>${n} сделок</small></div>` : ''; }).join('');
+  }
+  tiles += '</div>';
+  const chart = `<div class="chartbox"><div class="head"><span>Кривая ${single ? 'капитала, ' + esc(c) : 'результата в R'}</span><span class="num ${cls(acc)}">${val(acc)}</span></div><canvas id="curve" role="img" aria-label="Кривая результата"></canvas></div>`;
+  const table = (title, groups, order) => {
+    if (!groups.length) return '';
+    if (order) groups.sort(order); else groups.sort((a, b) => (single ? b.net - a.net : b.R - a.R));
+    return `<h3 class="sec">${title}</h3><div class="tbl-wrap"><table><thead><tr><th></th><th>Сделок</th><th>Винрейт</th><th>Σ R</th>${single ? '<th>Итог</th>' : ''}</tr></thead><tbody>${groups.map(g => `<tr><td>${esc(g.k)}</td><td class="num">${g.n}</td><td class="num"><span class="wrbar"><i style="width:${g.w / g.n * 100}%"></i></span>${Math.round(g.w / g.n * 100)}%</td><td class="num ${cls(g.R)}">${fmtR(g.R)}</td>${single ? `<td class="num ${cls(g.net)}">${money(g.net, c)}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+  };
+  const wdOrder = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const entryD = x => new Date(x.t.entryAt);
+  $('#v-stats').innerHTML = head + tiles + chart +
+    table('По сетапам', groupBy(rows, x => x.t.setup || 'Без сетапа')) +
+    table('По инструментам', groupBy(rows, x => x.t.symbol)) +
+    table('Лонг и шорт', groupBy(rows, x => x.t.dir === 'short' ? 'Шорт' : 'Лонг')) +
+    table('По дню недели входа', groupBy(rows, x => isNaN(entryD(x)) ? null : WDS[entryD(x).getDay()]), (a, b) => wdOrder.indexOf(a.k) - wdOrder.indexOf(b.k)) +
+    table('По часу входа', groupBy(rows, x => isNaN(entryD(x)) ? null : String(entryD(x).getHours()).padStart(2, '0') + ':00'), (a, b) => a.k.localeCompare(b.k)) +
+    table('По таймфрейму', groupBy(rows, x => x.t.tf)) +
+    table('Эмоции', groupBy(rows, x => x.t.emotions || [])) +
+    table('Ошибки — во что они обходятся', groupBy(rows, x => x.t.mistakes || []), (a, b) => a.R - b.R);
+  drawCurve($('#curve'), series, single ? v => fmtN(v, 0) : v => fmtN(v, 1) + 'R');
+}
+
+function drawCurve(cv, vals, lab) {
+  if (!cv) return;
+  const css = getComputedStyle(document.documentElement);
+  const col = n => css.getPropertyValue(n).trim();
+  const W = cv.clientWidth || 320, H = cv.clientHeight || 190, dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.scale(dpr, dpr);
+  const data = [0, ...vals];
+  let lo = Math.min(0, ...data), hi = Math.max(0, ...data); if (hi === lo) { hi += 1; lo -= 1; }
+  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  g.font = '11px ' + col('--font-num');
+  const labW = Math.max(g.measureText(lab(hi)).width, g.measureText(lab(lo)).width) + 8;
+  const L = labW, R = 8, T = 8, B = 8;
+  const x = i => L + (W - L - R) * (data.length === 1 ? 0 : i / (data.length - 1));
+  const y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  g.strokeStyle = col('--line'); g.fillStyle = col('--muted'); g.lineWidth = 1; g.textBaseline = 'middle';
+  for (let i = 0; i <= 3; i++) { const v = lo + (hi - lo) * i / 3; const yy = Math.round(y(v)) + .5; g.beginPath(); g.moveTo(L, yy); g.lineTo(W - R, yy); g.stroke(); g.fillText(lab(v), 0, yy); }
+  const zero = Math.round(y(0)) + .5; g.setLineDash([3, 3]); g.strokeStyle = col('--muted'); g.beginPath(); g.moveTo(L, zero); g.lineTo(W - R, zero); g.stroke(); g.setLineDash([]);
+  const last = data[data.length - 1], lc = last >= 0 ? col('--profit') : col('--loss');
+  g.beginPath(); data.forEach((v, i) => i ? g.lineTo(x(i), y(v)) : g.moveTo(x(i), y(v)));
+  g.lineTo(x(data.length - 1), zero); g.lineTo(x(0), zero); g.closePath();
+  const grd = g.createLinearGradient(0, T, 0, H - B); grd.addColorStop(0, lc + '40'); grd.addColorStop(1, lc + '00'); g.fillStyle = grd; g.fill();
+  g.beginPath(); data.forEach((v, i) => i ? g.lineTo(x(i), y(v)) : g.moveTo(x(i), y(v))); g.strokeStyle = lc; g.lineWidth = 2; g.lineJoin = 'round'; g.stroke();
+  g.beginPath(); g.arc(x(data.length - 1), y(last), 4, 0, Math.PI * 2); g.fillStyle = lc; g.fill();
+}
+
+/* ---------- настройки ---------- */
+function renderSettings() {
+  const mk = m => {
+    const s = S.markets[m];
+    return `<div class="card"><div class="mk-head"><span class="dot st-${m}"></span>${MARKETS[m]}</div>
+      <div class="row2"><label class="fld"><span>Стартовый депозит</span><input inputmode="decimal" data-s="${m}.deposit" value="${esc(s.deposit)}"></label>
+      <label class="fld"><span>Валюта</span><input data-s="${m}.cur" value="${esc(s.cur)}"></label></div>
+      ${m === 'moex' ? `<label class="fld"><span>Комиссия, ₽ за контракт за сторону</span><input inputmode="decimal" data-s="moex.feeRub" value="${esc(s.feeRub)}"></label>`
+        : `<label class="fld"><span>Комиссия, % за сторону (вход и выход)</span><input inputmode="decimal" data-s="${m}.feePct" value="${esc(s.feePct)}"></label>`}
+      ${m === 'crypto' ? `<div class="row2"><label class="fld"><span>Плечо по умолчанию</span><input inputmode="decimal" data-s="crypto.lev" value="${esc(s.lev)}"></label><label class="fld"><span>Поддерж. маржа, %</span><input inputmode="decimal" data-s="crypto.mmr" value="${esc(s.mmr)}"></label></div>` : ''}
+      <p class="note">Текущий баланс: <b class="num">${fmtN(balance(m), 2)} ${esc(s.cur)}</b></p></div>`;
+  };
+  const list = (key, title) => `<label class="fld"><span>${title} — по одному в строке</span><textarea data-list="${key}">${esc(S[key].join('\n'))}</textarea></label>`;
+  const specs = Object.entries(S.specs).filter(([, v]) => v.step || v.stepCost).map(([k, v]) => `${esc(k)}: шаг ${esc(v.step || '—')}, стоимость ${esc(v.stepCost || '—')} ₽${v.go ? ', ГО ' + esc(v.go) + ' ₽' : ''}`).join('<br>');
+  const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  const demoN = TR.filter(t => t.demo).length + IDEAS.filter(i => i.demo).length;
+  $('#v-settings').innerHTML = `
+    ${standalone ? '' : `<div class="card"><div class="mk-head">Установка на iPhone</div><ol class="steps"><li>Откройте эту страницу в Safari.</li><li>Нажмите «Поделиться» (квадрат со стрелкой вверх).</li><li>Выберите «На экран “Домой”» и нажмите «Добавить».</li></ol><p class="note">После этого журнал открывается с иконки как приложение и работает без интернета.</p></div>`}
+    <h3 class="sec">Риск</h3>
+    <div class="card"><label class="fld"><span>Плановый риск на сделку, % депозита</span><input inputmode="decimal" data-s="riskPct" value="${esc(S.riskPct)}"></label><p class="note">Используется в кнопке «Рассчитать объём по риску» и для предупреждения о превышении риска.</p></div>
+    <h3 class="sec">Рынки и депозиты</h3>
+    ${Object.keys(MARKETS).map(mk).join('')}
+    ${specs ? `<div class="card"><div class="mk-head">Запомненные фьючерсы ММВБ</div><p class="note num">${specs}</p><p class="note">Параметры подставляются автоматически, когда вы вводите тикер. Обновляются при сохранении сделки.</p></div>` : ''}
+    <h3 class="sec">Списки</h3>
+    <div class="card">${list('setups', 'Сетапы')}${list('tfs', 'Таймфреймы')}${list('emotions', 'Эмоции')}${list('mistakes', 'Ошибки')}</div>
+    <h3 class="sec">Excel</h3>
+    <div class="card">
+      <p class="note">Таблица из трёх листов: «Сделки», «Прогнозы» и «Итоги» по каждому рынку. После нажатия откроется меню «Поделиться» — отправьте файл в Telegram, WhatsApp, на почту или сохраните в «Файлы». Скриншоты графиков в таблицу не входят.</p>
+      <button type="button" class="btn" data-act="xlsx">Выгрузить в Excel</button>
+    </div>
+    <h3 class="sec">iPhone ↔ iPad</h3>
+    <div class="card">
+      <p class="note">Каждое устройство хранит свою копию журнала. Изменения переносятся файлом обмена через AirDrop: интернет не нужен, достаточно, чтобы устройства были рядом.</p>
+      <ol class="steps">
+        <li>Там, где вносили сделки, нажмите «Отправить на другое устройство» → AirDrop → ваш iPad. На iPad выберите «Сохранить в „Файлы“».</li>
+        <li>На iPad откройте журнал → «Принять файл» → выберите файл journal-sync в «Загрузках».</li>
+        <li>Новые и изменённые сделки, прогнозы и скриншоты добавятся, удалённые удалятся. Повторы не появятся — можно принимать один файл хоть дважды.</li>
+      </ol>
+      <div class="btnrow"><button type="button" class="btn small" data-act="export">Отправить на другое устройство</button>
+      <label class="btn soft small filebtn">Принять файл<input type="file" id="importFile" accept=".json,application/json"></label></div>
+      <p class="note">Последний приём файла: ${LASTSYNC ? new Date(LASTSYNC).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'ещё не было'}. Этот же файл — резервная копия: раз в неделю сохраняйте его в iCloud Drive.</p>
+    </div>
+    <h3 class="sec">Данные</h3>
+    <div class="card">
+      <p class="note">Сделок в журнале: ${TR.length}, прогнозов: ${IDEAS.length}. Хранилище: ${DB.ok ? 'память устройства, работает без интернета' : 'временное (данные пропадут после закрытия)'}.</p>
+      ${demoN ? `<button type="button" class="btn danger small" data-act="rmdemo">Удалить демо-данные (${demoN})</button>` : ''}
+    </div>`;
+}
+async function saveSettings() { try { await DB.set('settings', S); } catch (e) {} }
+
+/* ---------- экспорт / импорт ---------- */
+async function shareOrDownload(blob, name) {
+  const file = new File([blob], name, { type: blob.type });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+function stamp() { return localISO().slice(0, 10); }
+function exportJSON() { shareOrDownload(new Blob([JSON.stringify({ app: 'trade-journal', v: 2, exported: new Date().toISOString(), settings: S, trades: TR, ideas: IDEAS, deleted: TOMBS })], { type: 'application/json' }), `journal-sync-${stamp()}.json`); }
+
+/* слияние файла с другого устройства: новее — побеждает, удалённое — удаляется */
+async function mergeData(data) {
+  if (!data || !Array.isArray(data.trades)) throw new Error('format');
+  const inT = data.deleted || {}; let add = 0, upd = 0, del = 0;
+  const sets = [['trades', data.trades, () => TR, v => { TR = v; }], ['ideas', data.ideas || [], () => IDEAS, v => { IDEAS = v; }]];
+  for (const [st, arr, get, set] of sets) {
+    for (const x of arr) {
+      if (!x || !x.id) continue;
+      const tk = st + ':' + x.id;
+      if (TOMBS[tk] && TOMBS[tk] >= ver(x)) continue;
+      const list = get(), i = list.findIndex(y => y.id === x.id);
+      if (i >= 0) { if (ver(list[i]) >= ver(x)) continue; list[i] = x; upd++; } else { list.push(x); add++; }
+      await DB.put(st, x);
+    }
+    for (const [tk, ts] of Object.entries(inT)) {
+      if (!tk.startsWith(st + ':')) continue;
+      const id = tk.slice(st.length + 1), list = get(), cur0 = list.find(y => y.id === id);
+      if (cur0 && ver(cur0) <= ts) { await DB.del(st, id); set(list.filter(y => y.id !== id)); del++; }
+      if (!TOMBS[tk] || TOMBS[tk] < ts) TOMBS[tk] = ts;
+    }
+  }
+  await DB.set('deleted', TOMBS);
+  if (data.settings && data.settings.markets) {
+    const inc = mergeSettings(data.settings);
+    const specs = { ...inc.specs, ...S.specs }, lots = { ...inc.lots, ...S.lots };
+    if ((inc.updated || 0) > (S.updated || 0)) S = inc;
+    S.specs = specs; S.lots = lots; await saveSettings();
+  }
+  LASTSYNC = Date.now(); await DB.set('lastSync', LASTSYNC);
+  return { add, upd, del };
+}
+async function importJSON(file) {
+  try {
+    const r = await mergeData(JSON.parse(await file.text()));
+    toast(r.add + r.upd + r.del ? `Готово: новых ${r.add}, обновлено ${r.upd}, удалено ${r.del}` : 'Всё уже совпадает — изменений нет');
+    renderSettings();
+  } catch (e) { toast('Не получилось прочитать файл. Выберите файл журнала journal-sync (.json).'); }
+}
+
+/* ---------- Excel (.xlsx) без библиотек: работает офлайн ---------- */
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(files, type) {
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = enc.encode(f.data), crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 0x21, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), name);
+    off += 30 + name.length + data.length;
+  }
+  const size = central.reduce((a, x) => a + x.length, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, size, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type });
+}
+const xEsc = v => String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function colL(n) { let s = ''; n++; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+function xCell(ref, v, st) {
+  const sa = st ? ` s="${st}"` : '';
+  if (v === null || v === undefined || v === '' || (typeof v === 'number' && !Number.isFinite(v))) return st ? `<c r="${ref}"${sa}/>` : '';
+  if (typeof v === 'number') return `<c r="${ref}"${sa}><v>${v}</v></c>`;
+  return `<c r="${ref}" t="inlineStr"${sa}><is><t xml:space="preserve">${xEsc(v)}</t></is></c>`;
+}
+function xSheet(sh) {
+  const rows = [sh.cols.map(c => ({ v: c.h, s: 1 })), ...sh.rows];
+  const body = rows.map((r, ri) => `<row r="${ri + 1}"${ri === 0 ? ' ht="32" customHeight="1"' : ''}>` + r.map((cell, ci) => {
+    const o = cell !== null && typeof cell === 'object' ? cell : { v: cell };
+    return xCell(colL(ci) + (ri + 1), o.v, o.s ?? (sh.cols[ci].s || 0));
+  }).join('') + '</row>').join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${sh.cols.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c.w || 12}" customWidth="1"/>`).join('')}</cols><sheetData>${body}</sheetData>${sh.rows.length ? `<autoFilter ref="A1:${colL(sh.cols.length - 1)}${rows.length}"/>` : ''}</worksheet>`;
+}
+const XSTYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="0.00&quot;R&quot;"/></numFmts><fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><sz val="11"/><color rgb="FF11845A"/><name val="Calibri"/></font><font><sz val="11"/><color rgb="FFC63A2F"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE6ECF5"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="11">'
+  + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+  + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>'
+  + '<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+  + '<xf numFmtId="10" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+  + '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+  + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+  + '<xf numFmtId="4" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'
+  + '<xf numFmtId="4" fontId="3" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'
+  + '<xf numFmtId="164" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'
+  + '<xf numFmtId="164" fontId="3" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'
+  + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+  + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+function xlsxBlob(sheets) {
+  const ns = 'http://schemas.openxmlformats.org/', head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const defs = sheets.map((sh, i) => sh.rows.length ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${xEsc(sh.name)}'!$A$1:$${colL(sh.cols.length - 1)}$${sh.rows.length + 1}</definedName>` : '').join('');
+  return zipStore([
+    { name: '[Content_Types].xml', data: `${head}<Types xmlns="${ns}package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
+    { name: '_rels/.rels', data: `${head}<Relationships xmlns="${ns}package/2006/relationships"><Relationship Id="rId1" Type="${ns}officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { name: 'xl/workbook.xml', data: `${head}<workbook xmlns="${ns}spreadsheetml/2006/main" xmlns:r="${ns}officeDocument/2006/relationships"><sheets>${sheets.map((sh, i) => `<sheet name="${xEsc(sh.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>${defs ? `<definedNames>${defs}</definedNames>` : ''}</workbook>` },
+    { name: 'xl/_rels/workbook.xml.rels', data: `${head}<Relationships xmlns="${ns}package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="${ns}officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="${ns}officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+    { name: 'xl/styles.xml', data: XSTYLES },
+    ...sheets.map((sh, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: xSheet(sh) }))
+  ], XLSX_MIME);
+}
+function exportXLSX() {
+  const dt = v => v ? v.replace('T', ' ') : '';
+  const money = v => ok(v) ? { v, s: v > 0 ? 6 : v < 0 ? 7 : 2 } : null;
+  const rr = v => ok(v) ? { v, s: v > 0 ? 8 : v < 0 ? 9 : 4 } : null;
+  const frac = v => ok(v) ? v / 100 : null;
+  const tpCols = k => [1, 2, 3, 4, 5].map(n => ({ h: 'TP' + n, w: k }));
+  const trades = TR.slice().sort((a, b) => String(a.entryAt || '').localeCompare(String(b.entryAt || '')));
+  const sheetTrades = {
+    name: 'Сделки',
+    cols: [{ h: 'Рынок', w: 9 }, { h: 'Инструмент', w: 12 }, { h: 'Направление', w: 13 }, { h: 'Статус', w: 10 }, { h: 'Вход', w: 17 }, { h: 'День входа', w: 12 }, { h: 'Выход', w: 17 }, { h: 'День выхода', w: 12 }, { h: 'В сделке', w: 12 },
+      { h: 'Цена входа', w: 12 }, { h: 'Стоп', w: 12 }, { h: 'Объём', w: 10 }, { h: 'Плечо', w: 7 }, ...tpCols(16), { h: 'Средний выход', w: 13 }, { h: 'Риск', w: 11, s: 2 }, { h: 'Риск, % депо', w: 9, s: 3 },
+      { h: 'Комиссия', w: 10, s: 2 }, { h: 'Итог', w: 12, s: 2 }, { h: 'Итог, R', w: 9, s: 4 }, { h: 'Итог, % депо', w: 10, s: 3 }, { h: 'Валюта', w: 8 }, { h: 'Сетап', w: 16 }, { h: 'ТФ', w: 6 }, { h: 'Эмоции', w: 18 }, { h: 'Ошибки', w: 20 }, { h: 'Заметки', w: 45, s: 5 }],
+    rows: trades.map(t => {
+      const r = calc(t), tk = t.takes || [];
+      return [MARKETS[t.market], t.symbol, t.dir === 'short' ? 'шорт' : 'лонг', t.status === 'closed' ? 'закрыта' : 'открыта', dt(t.entryAt), wdOf(t.entryAt), dt(t.exitAt), wdOf(t.exitAt), ok(r.dur) ? dur(r.dur) : '',
+        num(t.entry), num(t.stop), num(t.qty), t.market === 'crypto' ? num(t.lev) : null,
+        ...[0, 1, 2, 3, 4].map(k => tk[k] && tk[k].price ? `${tk[k].price}${tk[k].pct ? ' (' + tk[k].pct + '%)' : ''}${tk[k].hit ? ' ✓' : ''}` : ''),
+        r.complete ? r.avgExit : null, r.risk, frac(r.riskPct), r.complete ? r.fees : null, r.complete ? money(r.net) : null, r.complete ? rr(r.R) : null, r.complete ? frac(r.depPct) : null,
+        cur(t.market), t.setup, t.tf, (t.emotions || []).join(', '), (t.mistakes || []).join(', '), t.notes];
+    })
+  };
+  const ideas = IDEAS.slice().sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+  const sheetIdeas = {
+    name: 'Прогнозы',
+    cols: [{ h: 'Дата', w: 17 }, { h: 'День', w: 12 }, { h: 'Рынок', w: 9 }, { h: 'Тикер', w: 12 }, { h: 'Направление', w: 13 }, { h: 'Статус', w: 12 }, { h: 'ТФ', w: 6 }, { h: 'ТВХ', w: 12 }, { h: 'SL', w: 12 }, { h: 'Стоп, %', w: 9, s: 3 },
+      ...tpCols(12), { h: 'Лучший R:R', w: 10, s: 4 }, { h: 'Сетап', w: 16 }, { h: 'Обоснование входа', w: 55, s: 5 }, { h: 'Условие отмены', w: 30, s: 5 }, { h: 'Что получилось', w: 40, s: 5 }, { h: 'Графики (ТФ)', w: 16 }, { h: 'Сделка', w: 10 }],
+    rows: ideas.map(i => {
+      const L = ideaLevels(i), rrs = L.takes.map(x => x.rr).filter(ok);
+      return [dt(i.at), wdOf(i.at), MARKETS[i.market], i.symbol, i.dir === 'short' ? 'шорт' : 'лонг', ISTAT[i.status] || '', i.tf, L.entry, L.stop, frac(L.distPct),
+        ...[0, 1, 2, 3, 4].map(k => L.takes[k] ? L.takes[k].price : null), rrs.length ? Math.max(...rrs) : null, i.setup, i.why, i.cancelIf, i.result,
+        (i.graphs || []).map(g => g.tf || '—').join(', '), i.tradeId && TR.some(t => t.id === i.tradeId) ? 'есть' : ''];
+    })
+  };
+  const sumRow = (label, list, c, inMoney) => {
+    const done = list.map(t => ({ t, r: calc(t) })).filter(x => x.r.complete), w = done.filter(x => x.r.net > 0);
+    const val = x => inMoney ? x.r.net : (ok(x.r.R) ? x.r.R : 0);
+    const gp = done.filter(x => val(x) > 0).reduce((a, x) => a + val(x), 0), gl = -done.filter(x => val(x) < 0).reduce((a, x) => a + val(x), 0);
+    const sumR = done.reduce((a, x) => a + (ok(x.r.R) ? x.r.R : 0), 0);
+    return [{ v: label, s: 10 }, c, done.length, w.length, done.length ? w.length / done.length : null, inMoney ? money(done.reduce((a, x) => a + x.r.net, 0)) : null,
+      rr(sumR), done.length ? rr(sumR / done.length) : null, gl > 0 ? Math.round(gp / gl * 100) / 100 : null, list.filter(t => t.status !== 'closed').length];
+  };
+  const sheetSum = {
+    name: 'Итоги',
+    cols: [{ h: 'Рынок', w: 18 }, { h: 'Валюта', w: 8 }, { h: 'Закрыто сделок', w: 10 }, { h: 'Прибыльных', w: 11 }, { h: 'Винрейт', w: 9, s: 3 }, { h: 'Чистый результат', w: 15 }, { h: 'Сумма R', w: 10 }, { h: 'Средний R', w: 10 }, { h: 'Профит-фактор', w: 10 }, { h: 'Открыто сейчас', w: 10 }],
+    rows: [...Object.keys(MARKETS).map(m => sumRow(MARKETS[m], TR.filter(t => t.market === m), cur(m), true)), sumRow('Все рынки (в R)', TR, '', false)]
+  };
+  shareOrDownload(xlsxBlob([sheetTrades, sheetIdeas, sheetSum]), `Журнал сделок ${stamp()}.xlsx`);
+}
+
+function mergeSettings(s) {
+  const d = JSON.parse(JSON.stringify(DEFAULTS));
+  const out = { ...d, ...s, markets: { ...d.markets } };
+  for (const m of Object.keys(d.markets)) out.markets[m] = { ...d.markets[m], ...(s.markets && s.markets[m] || {}) };
+  out.specs = { ...d.specs, ...(s.specs || {}) }; out.lots = { ...(s.lots || {}) };
+  return out;
+}
+
+/* ---------- демо-сделки ---------- */
+function makeDemo() {
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const specs = [
+    { market: 'crypto', symbol: 'BTCUSDT', price: 67000, lev: '10', qty: 0.015, sp: 0.012, step: 0.1 },
+    { market: 'crypto', symbol: 'ETHUSDT', price: 2500, lev: '10', qty: 0.4, sp: 0.015, step: 0.01 },
+    { market: 'stocks', symbol: 'AAPL', price: 230, lot: '1', qty: 40, sp: 0.01, step: 0.01 },
+    { market: 'moex', symbol: 'SI', price: 96500, mstep: '1', stepCost: '1', go: '13000', qty: 5, sp: 0.003, step: 1 },
+    { market: 'crypto', symbol: 'SOLUSDT', price: 150, lev: '5', qty: 6, sp: 0.02, step: 0.01 },
+    { market: 'stocks', symbol: 'NVDA', price: 130, lot: '1', qty: 60, sp: 0.015, step: 0.01 },
+    { market: 'moex', symbol: 'BR', price: 72, mstep: '0.01', stepCost: '9.5', go: '9000', qty: 4, sp: 0.01, step: 0.01 }
+  ];
+  const rd = (x, s) => String(Math.round(x / s) * s).replace(/(\.\d*?)0{6,}\d*$/, '$1');
+  const out = [];
+  for (let i = 0; i < 16; i++) {
+    const s = specs[i % specs.length], dir = rnd() > 0.4 ? 'long' : 'short', d = dir === 'long' ? 1 : -1;
+    const entry = s.price * (1 + (rnd() - 0.5) * 0.04), dist = entry * s.sp;
+    const e = new Date(); e.setDate(e.getDate() - (32 - i * 2)); e.setHours(9 + Math.floor(rnd() * 11), Math.floor(rnd() * 4) * 15, 0, 0);
+    const x = new Date(e.getTime() + (1 + rnd() * 20) * 3600e3);
+    const roll = rnd(); let takes, exit, mistakes = [], emotions;
+    const tp1 = rd(entry + d * dist * 1.5, s.step), tp2 = rd(entry + d * dist * 3, s.step);
+    if (roll < 0.5) { takes = [{ price: tp1, pct: '50', hit: true }, { price: tp2, pct: '50', hit: roll < 0.25 }]; exit = roll < 0.25 ? '' : rd(entry + d * dist * (1.6 + rnd()), s.step); emotions = ['Спокойствие']; }
+    else if (roll < 0.65) { takes = [{ price: tp1, pct: '50', hit: true }, { price: tp2, pct: '50', hit: false }]; exit = rd(entry, s.step); emotions = ['Сомнение']; mistakes = ['Рано закрыла']; }
+    else { takes = [{ price: tp1, pct: '50', hit: false }, { price: tp2, pct: '50', hit: false }]; exit = rd(entry - d * dist * (0.9 + rnd() * 0.2), s.step); emotions = [rnd() > 0.5 ? 'FOMO' : 'Нетерпение']; mistakes = [rnd() > 0.5 ? 'Вход без сетапа' : 'Против тренда']; }
+    const t = { id: 'demo' + i, demo: true, created: e.getTime(), market: s.market, symbol: s.symbol, dir, status: 'closed', entryAt: localISO(e), exitAt: localISO(x),
+      entry: rd(entry, s.step), stop: rd(entry - d * dist, s.step), qty: String(s.qty), takes, exit, fee: '', tf: ['15m', '1h', '4h'][i % 3],
+      setup: S.setups[Math.floor(rnd() * 5)], emotions, mistakes, notes: 'Демо-сделка', shot: null, dep: S.markets[s.market].deposit };
+    if (s.market === 'crypto') t.lev = s.lev; if (s.market === 'stocks') t.lot = s.lot;
+    if (s.market === 'moex') { t.step = s.mstep; t.stepCost = s.stepCost; t.go = s.go; }
+    out.push(t);
+  }
+  out[out.length - 1].status = 'open'; out[out.length - 1].exit = ''; out[out.length - 1].exitAt = ''; out[out.length - 1].takes.forEach(x => x.hit = false);
+  return out;
+}
+
+/* ---------- прогнозы ---------- */
+const ISTAT = { wait: 'ждёт входа', entered: 'вход', tp: 'тейк', sl: 'стоп', cancel: 'отменён' };
+const tfRank = tf => S.tfs.indexOf(tf);
+function ideaLevels(i) {
+  const dir = i.dir === 'short' ? -1 : 1, entry = num(i.entry), stop = num(i.stop);
+  const dist = ok(entry) && ok(stop) ? Math.abs(entry - stop) : NaN;
+  const takes = (i.takes || []).map(x => { const p = num(x.price); return { price: p, rr: ok(p) && dist > 0 ? (p - entry) * dir / dist : NaN }; });
+  return { dir, entry, stop, dist, distPct: ok(dist) && entry ? dist / entry * 100 : NaN, wrong: ok(entry) && ok(stop) && (dir > 0 ? stop >= entry : stop <= entry), takes };
+}
+function ideaSize(i) {
+  const sym = (i.symbol || '').toUpperCase();
+  const t = { market: i.market, entry: i.entry, stop: i.stop, lot: S.lots[sym] || 1 };
+  if (i.market === 'moex') { const sp = S.specs[sym] || {}; t.step = sp.step; t.stepCost = sp.stepCost; }
+  return sizeForRisk(t, S.riskPct, balance(i.market));
+}
+
+function renderIdeas() {
+  const c = k => IDEAS.filter(x => x.status === k).length, done = c('tp') + c('sl');
+  $('#ideaStats').innerHTML = [
+    ['Ждут', c('wait'), ''], ['В работе', c('entered'), ''],
+    ['Отработали', done ? Math.round(c('tp') / done * 100) + '%' : '—', done ? c('tp') + ' из ' + done : ''], ['Отменены', c('cancel'), '']
+  ].map(([a, b, sm]) => `<div class="bal"><span class="t mut">${a}</span><b>${b}</b>${sm ? `<small class="mut">${sm}</small>` : ''}</div>`).join('');
+  $('#fIdea').innerHTML = [['active', 'Актуальные'], ['wait', 'Ждут входа'], ['entered', 'В работе'], ['archive', 'Архив'], ['all', 'Все']]
+    .map(([k, v]) => `<button type="button" class="chip" data-if="${k}" aria-pressed="${UI.if === k}">${v}</button>`).join('');
+  const box = $('#ideaList');
+  if (!IDEAS.length) {
+    box.innerHTML = `<div class="empty"><h2>Прогнозов пока нет</h2><p>Сюда записываются активы, за которыми вы следите: тикер, ТВХ, SL, тейки, обоснование входа и графики на разных таймфреймах.</p><p>Когда цена дойдёт до ТВХ, нажмите в прогнозе «Открыть сделку» — уровни, сетап, обоснование и график перенесутся в журнал сами.</p><div class="btnrow"><button type="button" class="btn" data-act="newidea">Новый прогноз</button><button type="button" class="btn soft" data-act="ideademo">Загрузить примеры</button></div></div>`;
+    return;
+  }
+  const q = UI.iq.trim().toLowerCase();
+  const fit = st => UI.if === 'all' || (UI.if === 'active' ? st === 'wait' || st === 'entered' : UI.if === 'archive' ? st === 'tp' || st === 'sl' || st === 'cancel' : st === UI.if);
+  const list = IDEAS.filter(i => fit(i.status) && (!q || [i.symbol, i.why, i.setup, i.result].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+  if (!list.length) { box.innerHTML = '<div class="empty"><p>В этом фильтре прогнозов нет.</p></div>'; return; }
+  box.innerHTML = list.map(i => {
+    const L = ideaLevels(i), tps = L.takes.filter(x => ok(x.price)), d = new Date(i.at);
+    const when = isNaN(d) ? 'без даты' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ', ' + WDS[d.getDay()];
+    const graphs = i.graphs || [];
+    return `<button type="button" class="trade idea" data-iid="${i.id}"><span class="stripe st-${i.market}"></span><span class="main">
+      <span class="top"><span class="sym">${esc(i.symbol || '—')}</span><span class="pill ${i.dir}">${i.dir === 'short' ? 'шорт' : 'лонг'}</span><span class="pill st-${i.status}">${ISTAT[i.status] || ''}</span>${i.demo ? '<span class="pill demo">пример</span>' : ''}</span>
+      <span class="meta">${when} · ${MARKETS[i.market]}${i.tf ? ' · ' + esc(i.tf) : ''}${i.setup ? ' · ' + esc(i.setup) : ''}${i.tradeId && TR.some(t => t.id === i.tradeId) ? ' · есть сделка' : ''}</span>
+      <span class="lv"><span>ТВХ <b>${fmtPrice(L.entry)}</b></span><span>SL <b>${fmtPrice(L.stop)}</b>${ok(L.distPct) ? ' · ' + pct(L.distPct) : ''}</span>${tps.length ? `<span>TP <b>${tps.map(x => ok(x.rr) ? fmtN(x.rr, 1) : '—').join(' / ')}</b> R</span>` : ''}</span>
+      ${graphs.length ? `<span class="thumbs">${graphs.slice(0, 4).map(g => `<span class="thumb"><img src="${g.img}" alt="" loading="lazy"><i>${esc(g.tf || '—')}</i></span>`).join('')}</span>` : ''}
+    </span></button>`;
+  }).join('');
+}
+
+function iTakeRow(p = '') {
+  const d = document.createElement('div'); d.className = 'itake';
+  d.innerHTML = `<span class="tk-n"></span><input class="itk-price" inputmode="decimal" placeholder="Цена тейка" value="${esc(p)}"><span class="tk-rr">—</span><button type="button" class="tk-del itk-del" aria-label="Удалить тейк">×</button>`;
+  return d;
+}
+function renumberITakes() { $$('#itakes .itake').forEach((r, i) => $('.tk-n', r).textContent = 'TP' + (i + 1)); $('#addITake').hidden = $$('#itakes .itake').length >= 5; }
+function sortGraphs() { UI.igraphs.sort((a, b) => tfRank(b.tf) - tfRank(a.tf)); }
+function renderGraphs() {
+  const opts = tf => ['', ...S.tfs, ...(tf && !S.tfs.includes(tf) ? [tf] : [])].map(x => `<option value="${esc(x)}" ${x === tf ? 'selected' : ''}>${x ? 'ТФ ' + esc(x) : 'ТФ не выбран'}</option>`).join('');
+  $('#igraphs').innerHTML = UI.igraphs.map(g => `<div class="gimg" data-gid="${g.id}"><div class="bar"><select class="g-tf" aria-label="Таймфрейм графика">${opts(g.tf)}</select><button type="button" class="btn danger small g-del">Убрать</button></div><img src="${g.img}" alt="График ${esc(g.tf || '')}" data-act="zoom"><input class="g-note" placeholder="Что видно на этом ТФ" value="${esc(g.note || '')}"></div>`).join('');
+}
+function resetDelIdea() { const b = $('#delIdea'); b.dataset.armed = ''; b.textContent = 'Удалить прогноз'; }
+
+function openIdea(i) {
+  const last = IDEAS.slice().sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+  const d = i ? JSON.parse(JSON.stringify(i)) : { market: last ? last.market : 'crypto', dir: 'long', status: 'wait', at: localISO(), takes: [{}], graphs: [] };
+  UI.editingIdea = i ? i.id : null;
+  UI.igraphs = d.graphs || [];
+  segSet('iMarket', d.market); segSet('iDir', d.dir || 'long'); segSet('iStatus', d.status || 'wait');
+  $('#i-symbol').value = d.symbol || ''; $('#i-at').value = d.at || '';
+  $('#i-entry').value = d.entry ?? ''; $('#i-stop').value = d.stop ?? '';
+  $('#i-why').value = d.why || ''; $('#i-cancel').value = d.cancelIf || ''; $('#i-result').value = d.result || '';
+  $('#i-tf').innerHTML = '<option value="">—</option>' + S.tfs.map(x => `<option ${x === d.tf ? 'selected' : ''}>${esc(x)}</option>`).join('') + (d.tf && !S.tfs.includes(d.tf) ? `<option selected>${esc(d.tf)}</option>` : '');
+  $('#itakes').innerHTML = ''; (d.takes && d.takes.length ? d.takes : [{}]).slice(0, 5).forEach(x => $('#itakes').appendChild(iTakeRow(x.price ?? ''))); renumberITakes();
+  chipsRender('i-setup', S.setups, d.setup, false);
+  $('#delIdea').hidden = !i; resetDelIdea();
+  $('#toTrade').textContent = d.tradeId && TR.some(t => t.id === d.tradeId) ? 'Перейти к сделке' : 'Открыть сделку по прогнозу';
+  $('#symList').innerHTML = [...new Set([...TR, ...IDEAS].map(x => x.symbol).filter(Boolean))].map(s => `<option value="${esc(s)}">`).join('');
+  $$('#v-idea input.bad').forEach(x => x.classList.remove('bad'));
+  renderGraphs(); show('idea'); updateIdeaCalc();
+}
+
+function readIdea() {
+  const prev = UI.editingIdea ? IDEAS.find(x => x.id === UI.editingIdea) : null;
+  const i = {
+    id: UI.editingIdea || uid(), created: prev ? prev.created : Date.now(), updated: Date.now(),
+    market: segGet('iMarket') || 'crypto', dir: segGet('iDir') || 'long', status: segGet('iStatus') || 'wait',
+    symbol: $('#i-symbol').value.trim().toUpperCase(), at: $('#i-at').value, tf: $('#i-tf').value,
+    entry: $('#i-entry').value.trim(), stop: $('#i-stop').value.trim(),
+    takes: $$('#itakes .itake').map(r => ({ price: $('.itk-price', r).value.trim() })).filter(x => x.price),
+    setup: chipsGet('i-setup')[0] || '', why: $('#i-why').value.trim(), cancelIf: $('#i-cancel').value.trim(), result: $('#i-result').value.trim(),
+    graphs: UI.igraphs
+  };
+  if (prev && prev.tradeId) i.tradeId = prev.tradeId;
+  if (prev && prev.demo) i.demo = true;
+  return i;
+}
+
+function updateIdeaCalc() {
+  const i = readIdea(), L = ideaLevels(i);
+  $('#wd-idea').textContent = wdOf(i.at);
+  const rrs = L.takes.map(x => x.rr).filter(ok), q = ideaSize(i);
+  const unit = { crypto: 'монет', stocks: 'лотов', moex: 'контр.' }[i.market];
+  $('#ro-idea').innerHTML = [
+    ['Стоп, пунктов', ok(L.dist) ? fmtPrice(L.dist) : '—'],
+    ['Стоп от ТВХ', pct(L.distPct)],
+    ['Лучший R:R', rrs.length ? '1:' + fmtN(Math.max(...rrs), 2) : '—'],
+    ['Объём на риск ' + fmtN(S.riskPct, 2) + '%', ok(q) && q > 0 ? fmtN(q, 3) + ' ' + unit : '—']
+  ].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  $$('#itakes .itake').forEach(row => {
+    const p = num($('.itk-price', row).value), rr = ok(p) && L.dist > 0 ? (p - L.entry) * L.dir / L.dist : NaN, el = $('.tk-rr', row);
+    el.textContent = ok(rr) ? '1:' + fmtN(rr, 2) : '—'; el.className = 'tk-rr' + (ok(rr) && rr < 0 ? ' neg' : '');
+  });
+  const w = [];
+  if (L.wrong) w.push('SL стоит не с той стороны от ТВХ — проверьте направление.');
+  if (L.takes.some(x => ok(x.rr) && x.rr < 0)) w.push('Один из тейков стоит по другую сторону от ТВХ.');
+  $('#warn-idea').hidden = !w.length; $('#warn-idea').innerHTML = w.map(esc).join('<br>');
+  $('#iResultBox').hidden = i.status === 'wait';
+}
+
+async function saveIdea(silent) {
+  const isNew = !UI.editingIdea, i = readIdea();
+  if (!i.symbol) { $('#i-symbol').classList.add('bad'); $('#i-symbol').focus(); toast('Укажите тикер'); return null; }
+  await DB.put('ideas', i);
+  const k = IDEAS.findIndex(x => x.id === i.id); if (k >= 0) IDEAS[k] = i; else IDEAS.push(i);
+  UI.editingIdea = i.id;
+  if (!silent) { toast(isNew ? 'Прогноз сохранён' : 'Прогноз обновлён'); UI.editingIdea = null; show('ideas'); }
+  return i;
+}
+
+/* картинка-пример для демо-прогнозов */
+function demoChart(seed, tf, lv) {
+  const W = 960, H = 540, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
+  let s = seed; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const d = lv.dir, dist = Math.abs(lv.entry - lv.stop), N = 64;
+  const k = { '1W': 1.5, '1D': 1.2, '4h': 0.9, '1h': 0.65, '15m': 0.45 }[tf] || 0.7;
+  const p0 = lv.entry + d * dist * (2.2 + rnd()), p1 = lv.entry + d * dist * 0.35;
+  const cs = []; let prev = p0;
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1), base = p0 + (p1 - p0) * (t * t * (3 - 2 * t)) + Math.sin(i / 4 + seed) * dist * 0.45 * k * (1 - t * 0.7);
+    const o = prev, c = base + (rnd() - 0.5) * dist * 0.5 * k;
+    cs.push({ o, c, h: Math.max(o, c) + rnd() * dist * 0.25 * k, l: Math.min(o, c) - rnd() * dist * 0.25 * k }); prev = c;
+  }
+  const lvls = [lv.entry, lv.stop, ...lv.tps];
+  let lo = Math.min(...lvls, ...cs.map(x => x.l)), hi = Math.max(...lvls, ...cs.map(x => x.h)); const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  const R = W - 150, y = v => 24 + (H - 48) * (1 - (v - lo) / (hi - lo)), font = '-apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+  g.fillStyle = '#131722'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#1e2433'; g.lineWidth = 1;
+  for (let i = 1; i < 6; i++) { const yy = Math.round(H * i / 6) + .5; g.beginPath(); g.moveTo(0, yy); g.lineTo(W, yy); g.stroke(); }
+  const cw = R * 0.8 / N;
+  cs.forEach((c, i) => {
+    const x = 16 + i * cw + cw / 2; g.strokeStyle = g.fillStyle = c.c >= c.o ? '#26a69a' : '#ef5350';
+    g.beginPath(); g.moveTo(x, y(c.h)); g.lineTo(x, y(c.l)); g.stroke();
+    const t = y(Math.max(c.o, c.c)), b = y(Math.min(c.o, c.c)); g.fillRect(x - cw * 0.35, t, cw * 0.7, Math.max(1, b - t));
+  });
+  const line = (v, col, label, dash) => {
+    const yy = Math.round(y(v)) + .5; g.setLineDash(dash ? [8, 6] : []); g.strokeStyle = col; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0, yy); g.lineTo(R, yy); g.stroke(); g.setLineDash([]);
+    g.fillStyle = col; g.fillRect(R, yy - 14, 150, 28); g.fillStyle = '#fff'; g.font = '600 15px ' + font; g.fillText(label + '  ' + fmtPrice(v), R + 10, yy + 5);
+  };
+  lv.tps.forEach((v, i) => line(v, '#1f9e7a', 'TP' + (i + 1), true)); line(lv.stop, '#e0483f', 'SL', true); line(lv.entry, '#2962ff', 'ТВХ', false);
+  g.fillStyle = '#d1d4dc'; g.font = '700 24px ' + font; g.fillText(lv.sym + ' · ' + tf, 18, 40);
+  g.fillStyle = '#787b86'; g.font = '15px ' + font; g.fillText('пример графика', 18, 64);
+  return cv.toDataURL('image/jpeg', 0.82);
+}
+function makeDemoIdeas() {
+  const day = n => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(10, 30, 0, 0); return localISO(d); };
+  const spec = [
+    { market: 'crypto', symbol: 'BTCUSDT', dir: 'long', status: 'wait', at: day(0), entry: '61250', stop: '60400', tps: ['62900', '64800'], tf: '4h', setup: 'Ретест уровня', tfs: ['1D', '4h', '1h'],
+      why: '1D: восходящая структура, пробит уровень 61 000.\n4h: цена вернулась на ретест сверху, объёмы на снижении падают.\n1h: жду ложный пробой под 61 200 и возврат — вход по закрытию свечи выше уровня.', cancelIf: 'Закрепление 4h ниже 60 400' },
+    { market: 'moex', symbol: 'SI', dir: 'short', status: 'entered', at: day(2), entry: '96800', stop: '97100', tps: ['96200', '95600'], tf: '1h', setup: 'Отбой от уровня', tfs: ['4h', '1h'],
+      why: '4h: третье касание сопротивления 96 800–97 000, каждый раз с продавцом.\n1h: поглощение на уровне, вход от верхней границы.', cancelIf: 'Закрытие часа выше 97 100' },
+    { market: 'stocks', symbol: 'NVDA', dir: 'long', status: 'tp', at: day(9), entry: '128', stop: '124.5', tps: ['134', '138'], tf: '1D', setup: 'Пробой', tfs: ['1D', '1h'],
+      why: '1D: выход из боковика 120–128 на растущем объёме.\n1h: вход на ретесте верхней границы.', result: 'TP1 и TP2 отработали за 4 торговых дня.' },
+    { market: 'crypto', symbol: 'ETHUSDT', dir: 'short', status: 'sl', at: day(14), entry: '2620', stop: '2680', tps: ['2500'], tf: '1h', setup: 'Контртренд', tfs: ['4h', '15m'],
+      why: '15m: перекупленность у локального максимума.\n4h: тренд вверх — сделка против старшего ТФ.', result: 'Выбило стоп: вход был против тренда старшего ТФ. В следующий раз не шортить при восходящем 4h.' }
+  ];
+  return spec.map((x, n) => ({
+    id: 'idemo' + n, demo: true, created: Date.now() - n, updated: Date.now(), market: x.market, symbol: x.symbol, dir: x.dir, status: x.status, at: x.at,
+    tf: x.tf, entry: x.entry, stop: x.stop, takes: x.tps.map(p => ({ price: p })), setup: x.setup, why: x.why, cancelIf: x.cancelIf || '', result: x.result || '',
+    graphs: x.tfs.map((tf, j) => ({ id: 'g' + n + j, tf, note: '', img: demoChart(7 + n * 31 + j * 13, tf, { dir: x.dir === 'short' ? -1 : 1, entry: num(x.entry), stop: num(x.stop), tps: x.tps.map(num), sym: x.symbol }) }))
+  }));
+}
+
+/* ---------- события ---------- */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button, img[data-act]'); if (!b) return;
+  if (b.classList.contains('tab')) return show(b.dataset.tab);
+  if (b.id === 'addBtn') return (UI.tab === 'ideas' || UI.tab === 'idea') ? openIdea(null) : openForm(null);
+  if (b.matches('.idea')) { const i = IDEAS.find(x => x.id === b.dataset.iid); if (i) openIdea(i); return; }
+  if (b.dataset.if) { UI.if = b.dataset.if; return renderIdeas(); }
+  if (b.closest('#iMarket')) { segSet('iMarket', b.dataset.v); return updateIdeaCalc(); }
+  if (b.closest('#iDir')) { segSet('iDir', b.dataset.v); return updateIdeaCalc(); }
+  if (b.closest('#iStatus')) { segSet('iStatus', b.dataset.v); return updateIdeaCalc(); }
+  if (b.classList.contains('itk-del')) { b.closest('.itake').remove(); if (!$$('#itakes .itake').length) $('#itakes').appendChild(iTakeRow()); renumberITakes(); return updateIdeaCalc(); }
+  if (b.id === 'addITake') { if ($$('#itakes .itake').length >= 5) return; $('#itakes').appendChild(iTakeRow()); renumberITakes(); $$('#itakes .itk-price').at(-1).focus(); return updateIdeaCalc(); }
+  if (b.classList.contains('g-del')) { const id = b.closest('.gimg').dataset.gid; UI.igraphs = UI.igraphs.filter(g => g.id !== id); return renderGraphs(); }
+  if (b.id === 'toTrade') {
+    const i = await saveIdea(true); if (!i) return;
+    const tr = i.tradeId && TR.find(x => x.id === i.tradeId);
+    if (tr) return openForm(tr);
+    const tps = i.takes.filter(x => ok(num(x.price))), n = tps.length, p = n ? Math.floor(100 / n) : 0;
+    const main = i.graphs.find(g => g.tf === i.tf) || i.graphs[0];
+    return openForm(null, false, {
+      market: i.market, dir: i.dir, symbol: i.symbol, entry: i.entry, stop: i.stop, status: 'open',
+      tf: i.tf || (main ? main.tf : ''), setup: i.setup, notes: i.why, shot: main ? main.img : null,
+      emotions: [], mistakes: [], ideaId: i.id,
+      takes: n ? tps.map((x, k) => ({ price: x.price, pct: String(k === n - 1 ? 100 - p * (n - 1) : p), hit: false })) : [{}]
+    });
+  }
+  if (b.id === 'toIdea') { const i = IDEAS.find(x => x.id === UI.formIdea); if (i) openIdea(i); return; }
+  if (b.id === 'delIdea') {
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажмите ещё раз, чтобы удалить'; setTimeout(() => { if (b.dataset.armed) resetDelIdea(); }, 3500); return; }
+    tomb('ideas', UI.editingIdea); await DB.del('ideas', UI.editingIdea); IDEAS = IDEAS.filter(x => x.id !== UI.editingIdea); UI.editingIdea = null; toast('Прогноз удалён'); return show('ideas');
+  }
+  if (b.id === 'backBtn') { UI.editing = null; UI.editingIdea = null; return show(UI.prevTab); }
+  if (b.id === 'saveTop') return UI.tab === 'idea' ? saveIdea() : saveForm();
+  if (b.matches('.trade')) { const t = TR.find(x => x.id === b.dataset.id); if (t) openForm(t); return; }
+  if (b.dataset.fo) { UI.fo = !UI.fo; return renderJournal(); }
+  if (b.dataset.fm) { UI.fm = b.dataset.fm; return renderJournal(); }
+  if (b.dataset.sp) { UI.sp = b.dataset.sp; return renderStats(); }
+  if (b.closest('#segSM')) { UI.sm = b.dataset.v; return renderStats(); }
+  if (b.closest('#segMarket')) { segSet('segMarket', b.dataset.v); applyMarket(); fillSpecs(); return updateCalc(); }
+  if (b.closest('#segDir')) { segSet('segDir', b.dataset.v); return updateCalc(); }
+  if (b.closest('#segStatus')) { segSet('segStatus', b.dataset.v); if (b.dataset.v === 'closed' && !$('#f-exitAt').value) $('#f-exitAt').value = localISO(); return updateCalc(); }
+  if (b.classList.contains('chip') && b.closest('#v-form, #v-idea')) {
+    const box = b.parentElement; const on = b.getAttribute('aria-pressed') !== 'true';
+    if (!box.dataset.multi) $$('.chip', box).forEach(c => c.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', String(on)); return;
+  }
+  if (b.classList.contains('tk-hit')) { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); return updateCalc(); }
+  if (b.classList.contains('tk-del')) { b.closest('.take').remove(); if (!$$('#takes .take').length) $('#takes').appendChild(takeRow()); renumberTakes(); return updateCalc(); }
+  if (b.id === 'addTake') {
+    const rows = $$('#takes .take'); if (rows.length >= 5) return;
+    $('#takes').appendChild(takeRow()); renumberTakes();
+    const all = $$('#takes .take'); if (!all.some(r => $('.tk-pct', r).dataset.touched)) { const p = Math.floor(100 / all.length); all.forEach((r, i) => { $('.tk-pct', r).value = i === all.length - 1 ? String(100 - p * (all.length - 1)) : String(p); }); }
+    $('.tk-price', all[all.length - 1]).focus(); return updateCalc();
+  }
+  if (b.id === 'calcSize') {
+    const t = readForm(); const rp = num($('#f-riskPct').value); const q = sizeForRisk(t, rp, t.dep);
+    if (!ok(q)) return toast('Укажите цену входа и стоп' + (t.market === 'moex' ? ', шаг и стоимость шага' : ''));
+    if (q <= 0) return toast('Стоп слишком широкий для такого риска — даже 1 ' + (t.market === 'moex' ? 'контракт' : 'лот') + ' превышает его');
+    $('#f-qty').value = String(q); return updateCalc();
+  }
+  if (b.id === 'dupBtn') { const t = TR.find(x => x.id === UI.editing); if (t) openForm(t, true); return; }
+  if (b.id === 'delBtn') {
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Нажмите ещё раз, чтобы удалить'; setTimeout(() => { if (b.dataset.armed) resetDel(); }, 3500); return; }
+    tomb('trades', UI.editing); await DB.del(UI.editing); TR = TR.filter(x => x.id !== UI.editing); UI.editing = null; toast('Сделка удалена'); return show('journal');
+  }
+  const act = b.dataset.act;
+  if (act === 'new') return openForm(null);
+  if (act === 'demo') { for (const t of makeDemo()) { await DB.put(t); TR.push(t); } toast('Демо-сделки загружены'); return renderJournal(); }
+  if (act === 'rmdemo') { for (const t of TR.filter(x => x.demo)) { tomb('trades', t.id); await DB.del(t.id); } TR = TR.filter(x => !x.demo); for (const i of IDEAS.filter(x => x.demo)) { tomb('ideas', i.id); await DB.del('ideas', i.id); } IDEAS = IDEAS.filter(x => !x.demo); toast('Демо-данные удалены'); return renderSettings(); }
+  if (act === 'export') return exportJSON();
+  if (act === 'xlsx') return exportXLSX();
+  if (act === 'rmshot') { UI.shot = null; return renderShot(); }
+  if (act === 'zoom') { $('#viewer img').src = b.getAttribute('src'); $('#viewer').hidden = false; return; }
+  if (act === 'newidea') return openIdea(null);
+  if (act === 'ideademo') { for (const i of makeDemoIdeas()) { await DB.put('ideas', i); IDEAS.push(i); } toast('Примеры прогнозов загружены'); return renderIdeas(); }
+});
+$('#viewer').addEventListener('click', () => $('#viewer').hidden = true);
+$('#tradeForm').addEventListener('submit', e => { e.preventDefault(); saveForm(); });
+$('#tradeForm').addEventListener('input', e => { if (e.target.classList.contains('tk-pct')) e.target.dataset.touched = '1'; e.target.classList.remove('bad'); updateCalc(); });
+$('#f-symbol').addEventListener('change', () => { fillSpecs(); updateCalc(); });
+$('#f-shot').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; try { UI.shot = await compressImage(f); renderShot(); } catch (err) { toast('Не удалось открыть изображение'); } e.target.value = ''; });
+$('#q').addEventListener('input', e => { UI.q = e.target.value; renderJournal(); });
+$('#iq').addEventListener('input', e => { UI.iq = e.target.value; renderIdeas(); });
+$('#ideaForm').addEventListener('submit', e => { e.preventDefault(); saveIdea(); });
+$('#ideaForm').addEventListener('input', e => {
+  const el = e.target; el.classList.remove('bad');
+  if (el.classList.contains('g-note')) { const g = UI.igraphs.find(x => x.id === el.closest('.gimg').dataset.gid); if (g) g.note = el.value; return; }
+  updateIdeaCalc();
+});
+$('#ideaForm').addEventListener('change', e => {
+  const el = e.target;
+  if (el.classList.contains('g-tf')) { const g = UI.igraphs.find(x => x.id === el.closest('.gimg').dataset.gid); if (g) { g.tf = el.value; sortGraphs(); renderGraphs(); } }
+});
+$('#i-shots').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = ''; if (!files.length) return;
+  const pref = ['1D', '4h', '1h', '15m', '1W', '30m', '5m', '1m'];
+  const order = [...pref.filter(x => S.tfs.includes(x)), ...S.tfs.filter(x => !pref.includes(x))];
+  let added = 0;
+  for (const f of files) {
+    try {
+      const img = await compressImage(f);
+      const used = new Set(UI.igraphs.map(g => g.tf));
+      UI.igraphs.push({ id: uid(), tf: order.find(x => !used.has(x)) || '', img, note: '' }); added++;
+    } catch (err) { toast('Не удалось открыть одно из изображений'); }
+  }
+  sortGraphs(); renderGraphs();
+  if (added) toast('Добавлено графиков: ' + added + '. Проверьте ТФ над каждым');
+});
+$('#v-settings').addEventListener('change', async e => {
+  const el = e.target;
+  if (el.id === 'importFile') { if (el.files[0]) await importJSON(el.files[0]); return; }
+  if (el.dataset.s) {
+    const path = el.dataset.s.split('.'); const isText = path[1] === 'cur';
+    const v = isText ? el.value.trim() : num(el.value);
+    if (!isText && !ok(v)) { toast('Введите число'); return renderSettings(); }
+    if (path.length === 1) S[path[0]] = v; else S.markets[path[0]][path[1]] = v;
+  }
+  if (el.dataset.list) S[el.dataset.list] = el.value.split('\n').map(x => x.trim()).filter(Boolean);
+  S.updated = Date.now();
+  await saveSettings(); toast('Сохранено');
+});
+window.addEventListener('resize', () => { if (UI.tab === 'stats') renderStats(); });
+
+/* ---------- запуск ---------- */
+(async function init() {
+  await DB.open();
+  const saved = await DB.get('settings'); if (saved) S = mergeSettings(saved);
+  TR = await DB.all('trades'); IDEAS = await DB.all('ideas'); TOMBS = (await DB.get('deleted')) || {}; LASTSYNC = (await DB.get('lastSync')) || null;
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|anthropic|usercontent/.test(location.hostname)) {
+    try { navigator.serviceWorker.register('sw.js'); } catch (e) {}
+  }
+  show('journal');
+})();
+</script>
+
+</body>
+</html>
