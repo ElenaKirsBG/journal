@@ -222,6 +222,7 @@ td.num{font-family:var(--font-num)}
 .gimg .bar select{flex:1;width:auto;background-color:var(--surface);font-weight:650}
 .gimg img{display:block;width:100%;height:auto;border-radius:8px;cursor:zoom-in}
 .gimg input{background:var(--surface)}
+#updBar{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:31;background:var(--ink);color:var(--bg);border-radius:14px;padding:10px 10px 10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14.5px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 #toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:calc(92px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:30;max-width:calc(100% - 32px);text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 #viewer{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.92);display:grid;place-items:center;padding:calc(env(safe-area-inset-top,0px) + 16px) 12px calc(env(safe-area-inset-bottom,0px) + 16px)}
@@ -430,6 +431,7 @@ td.num{font-family:var(--font-num)}
 </nav>
 
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="updBar" hidden><span>Загружена новая версия журнала</span><button type="button" class="btn small" id="updBtn">Обновить</button></div>
 <div id="viewer" hidden><img alt="Скриншот сделки"></div>
 
 <script>
@@ -1005,9 +1007,21 @@ function renderSettings() {
     </div>
     <h3 class="sec">Данные</h3>
     <div class="card">
+      <p class="note" id="offlineStatus">Офлайн-режим: проверяю…</p>
       <p class="note">Сделок в журнале: ${TR.length}, прогнозов: ${IDEAS.length}. Хранилище: ${DB.ok ? 'память устройства, работает без интернета' : 'временное (данные пропадут после закрытия)'}.</p>
       ${demoN ? `<button type="button" class="btn danger small" data-act="rmdemo">Удалить демо-данные (${demoN})</button>` : ''}
     </div>`;
+  offlineStatus();
+}
+async function offlineStatus() {
+  const el = $('#offlineStatus'); if (!el) return;
+  try {
+    if (!('serviceWorker' in navigator) || !('caches' in window)) { el.textContent = 'Офлайн-режим: недоступен в этом браузере.'; return; }
+    let saved = false;
+    for (const k of await caches.keys()) if (k.startsWith('trade-journal-') && await (await caches.open(k)).match('./index.html')) saved = true;
+    el.textContent = saved && navigator.serviceWorker.controller ? 'Офлайн-режим: готов ✓ Журнал откроется без интернета.' : 'Офлайн-режим: ещё не готов. Закройте журнал и откройте снова, пока есть интернет.';
+    el.className = 'note ' + (saved && navigator.serviceWorker.controller ? 'pos' : 'neg');
+  } catch (e) { el.textContent = 'Офлайн-режим: не удалось проверить.'; }
 }
 async function saveSettings() { try { await DB.set('settings', S); } catch (e) {} }
 
@@ -1442,6 +1456,7 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('button, img[data-act]'); if (!b) return;
   if (b.classList.contains('tab')) return show(b.dataset.tab);
   if (b.dataset.pv !== undefined && b.closest('.pct-row')) { const row = b.closest('.pct-row'); $('input', row).value = b.dataset.pv; syncPct(row); return UI.tab === 'idea' ? updateIdeaCalc() : updateCalc(); }
+  if (b.id === 'updBtn') return location.reload();
   if (b.id === 'addBtn') return (UI.tab === 'ideas' || UI.tab === 'idea') ? openIdea(null) : openForm(null);
   if (b.matches('.idea')) { const i = IDEAS.find(x => x.id === b.dataset.iid); if (i) openIdea(i); return; }
   if (b.dataset.if) { UI.if = b.dataset.if; return renderIdeas(); }
@@ -1572,8 +1587,10 @@ window.addEventListener('resize', () => { if (UI.tab === 'stats') renderStats();
   const saved = await DB.get('settings'); if (saved) S = mergeSettings(saved);
   TR = await DB.all('trades'); IDEAS = await DB.all('ideas'); TOMBS = (await DB.get('deleted')) || {}; LASTSYNC = (await DB.get('lastSync')) || null;
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
-  if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|anthropic|usercontent/.test(location.hostname)) {
-    try { navigator.serviceWorker.register('sw.js'); } catch (e) {}
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) && !/claude|anthropic|usercontent/.test(location.hostname)) {
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) $('#updBar').hidden = false; });
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   show('journal');
 })();
