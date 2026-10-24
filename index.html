@@ -325,7 +325,7 @@ input[type="range"]{padding:0;border:0;background:none;height:30px;-webkit-appea
           <label class="fld"><span>Таймфрейм</span><select id="f-tf"></select></label>
         </div>
         <div class="fld" data-only="crypto"><span class="lbl">Биржа</span><div class="chips" id="c-ex"></div></div>
-        <div class="tvrow"><a class="btn soft small" id="f-tvlink" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener">Открыть в TradingView</a><button type="button" class="btn soft small" data-act="tvcopy" data-pre="f">Копировать тикер</button><button type="button" class="btn soft small tv-live" data-box="f-tvbox">Живой график</button></div>
+        <div class="tvrow"><a class="btn soft small" id="f-tvlink" data-act="tvopen" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener">Открыть в TradingView</a><button type="button" class="btn soft small" data-act="tvcopy" data-pre="f">Копировать тикер</button><button type="button" class="btn soft small tv-live" data-box="f-tvbox">Живой график</button></div>
         <p class="note tvdesc" id="f-tvdesc"></p>
         <label class="fld"><span>Тикер в TradingView</span><input id="f-tv" autocapitalize="characters" spellcheck="false" placeholder="авто"><small id="f-tvhint">Если график открылся не тот — впишите тикер как в TradingView, например BINANCE:BTCUSDT.P</small></label>
         <div class="tvbox" id="f-tvbox" hidden></div>
@@ -442,7 +442,7 @@ input[type="range"]{padding:0;border:0;background:none;height:30px;-webkit-appea
           <label class="fld"><span>Рабочий ТФ</span><select id="i-tf"></select></label>
         </div>
         <div class="fld" data-ionly="crypto"><span class="lbl">Биржа</span><div class="chips" id="i-ex"></div></div>
-        <div class="tvrow"><a class="btn soft small" id="i-tvlink" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener">Открыть в TradingView</a><button type="button" class="btn soft small" data-act="tvcopy" data-pre="i">Копировать тикер</button><button type="button" class="btn soft small tv-live" data-box="i-tvbox">Живой график</button></div>
+        <div class="tvrow"><a class="btn soft small" id="i-tvlink" data-act="tvopen" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener">Открыть в TradingView</a><button type="button" class="btn soft small" data-act="tvcopy" data-pre="i">Копировать тикер</button><button type="button" class="btn soft small tv-live" data-box="i-tvbox">Живой график</button></div>
         <p class="note tvdesc" id="i-tvdesc"></p>
         <label class="fld"><span>Тикер в TradingView</span><input id="i-tv" autocapitalize="characters" spellcheck="false" placeholder="авто"><small id="i-tvhint">Если график открылся не тот — впишите тикер как в TradingView, например BINANCE:BTCUSDT.P</small></label>
         <div class="tvbox" id="i-tvbox" hidden></div>
@@ -1197,7 +1197,9 @@ function renderSettings() {
     <h3 class="sec">Списки</h3>
     <div class="card">${list('setups', 'Сетапы')}${list('tfs', 'Таймфреймы')}${list('emotions', 'Эмоции')}${list('mistakes', 'Ошибки')}${list('exitReasons', 'Причины выхода')}${list('exchanges', 'Криптобиржи')}<p class="note">Своя биржа: допишите строку, например <b>Bitunix</b>. Если TradingView называет её иначе — укажите его название в скобках: <b>Gate (GATEIO)</b>.</p></div>
     <h3 class="sec">TradingView</h3>
-    <div class="card"><label class="fld"><span>Ссылка на ваш график (с вашими индикаторами)</span><input data-tvl value="${esc(S.tvLayout || '')}" placeholder="https://www.tradingview.com/chart/AbCdEfGh/" autocapitalize="off" spellcheck="false"></label><p class="note">${tvLayout() ? 'Кнопка «Открыть в TradingView» откроет ваш график <b>' + esc(tvLayout()) + '</b> с нужным тикером.' : 'Откройте TradingView на компьютере или в Safari, откройте свой график с индикаторами и скопируйте адрес из строки браузера (вид …/chart/AbCdEfGh/). Без этой ссылки TradingView открывает пустой график по умолчанию.'}</p></div>
+    <div class="card"><label class="fld"><span>Ссылка на ваш график (с вашими индикаторами)</span><input data-tvl value="${esc(S.tvLayout || '')}" placeholder="https://www.tradingview.com/chart/AbCdEfGh/" autocapitalize="off" spellcheck="false"></label><p class="note">${tvLayout() ? 'Кнопка «Открыть в TradingView» откроет ваш график <b>' + esc(tvLayout()) + '</b> с нужным тикером. Ваш график видите только вы — TradingView должен быть открыт с входом в ваш аккаунт, иначе он пишет «Can\'t open this chart layout».' : (S.tvLayout ? '<b>Это не похоже на ссылку на график.</b> Нужен адрес вида tradingview.com/chart/AbCdEfGh/ — 8 букв и цифр после /chart/. ' : '') + 'Откройте TradingView на компьютере или в Safari, откройте свой график с индикаторами и скопируйте адрес из строки браузера (вид …/chart/AbCdEfGh/). Без этой ссылки TradingView открывает пустой график по умолчанию.'}</p>
+      <label class="fld"><span>Где открывать TradingView на iPhone</span><select data-tvo><option value="safari" ${(S.tvOpen || 'safari') === 'safari' ? 'selected' : ''}>В Safari — там сохраняется вход в аккаунт</option><option value="inapp" ${S.tvOpen === 'inapp' ? 'selected' : ''}>Во встроенном окне журнала</option></select></label>
+      <p class="note">«Живой график» внутри журнала — виджет TradingView без входа в аккаунт: в нём не бывает ваших индикаторов и рисунков. Для разбора используйте «Открыть в TradingView» или «Копировать тикер» → поиск в приложении TradingView.</p></div>
     <h3 class="sec">Смайлы для результата</h3>
     <div class="card"><p class="note">Ставятся автоматически: прибыль, убыток или безубыток (результат меньше 0,1R по модулю).</p>
       <div class="chips">${EMOJI_SETS.map((e, i) => `<button type="button" class="chip" data-eset="${i}" aria-pressed="${!!S.emoji && e[0] === S.emoji.win && e[1] === S.emoji.loss && e[2] === S.emoji.be}">${e.join(' ')}</button>`).join('')}<button type="button" class="chip" data-eset="off" aria-pressed="${!S.emoji || !(S.emoji.win || S.emoji.loss || S.emoji.be)}">Без смайлов</button></div>
@@ -1749,7 +1751,22 @@ function tvSymbol(t) {
   if (t.market === 'crypto') { const e = t.exchange || mk.exch; if (e) ex = exPrefix(e); }
   return (ex ? ex + ':' : '') + s;
 }
-function tvLayout() { const m = String(S.tvLayout || '').match(/chart\/([A-Za-z0-9]{6,})/); return m ? m[1] : ''; }
+function tvLayout() { const m = String(S.tvLayout || '').trim().match(/chart\/([A-Za-z0-9]{8})\/?(?:[?#]|$)/); return m ? m[1] : ''; }
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_STANDALONE = () => window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+/* iPhone: из приложения с иконки ссылки открываются во встроенном окне со своим входом —
+   TradingView там «не узнаёт» вас и не пускает в личный график. Открываем в настоящем Safari. */
+function openTV(url) {
+  const mode = S.tvOpen || 'safari';
+  if (IS_IOS && IS_STANDALONE() && mode === 'safari') {
+    let left = false; const onHide = () => { left = true; };
+    document.addEventListener('visibilitychange', onHide, { once: true });
+    location.href = 'x-safari-' + url;
+    setTimeout(() => { document.removeEventListener('visibilitychange', onHide); if (!left && !document.hidden) window.open(url, '_blank'); }, 1500);
+    return;
+  }
+  window.open(url, '_blank', 'noopener');
+}
 function tvDescribe(sym, t) {
   if (!sym) return '';
   const [ex, rest] = sym.includes(':') ? sym.split(':') : ['', sym];
@@ -2258,7 +2275,7 @@ function makeDemoIdeas() {
 
 /* ---------- события ---------- */
 document.addEventListener('click', async e => {
-  const b = e.target.closest('button, img[data-act]'); if (!b) return;
+  const b = e.target.closest('button, img[data-act], a[data-act]'); if (!b) return;
   if (b.classList.contains('tab')) return show(b.dataset.tab);
   if (b.dataset.pv !== undefined && b.closest('.pct-row')) { const row = b.closest('.pct-row'); $('input', row).value = b.dataset.pv; syncPct(row); return UI.tab === 'idea' ? updateIdeaCalc() : updateCalc(); }
   if (b.id === 'updBtn') return location.reload();
@@ -2378,6 +2395,7 @@ document.addEventListener('click', async e => {
   if (act === 'ocrclose') { $('#i-ocr').hidden = true; $('#i-ocr').innerHTML = ''; UI.shotURL = null; return; }
   if (act === 'ocrapply') return applyShot();
   if (act === 'testsound') { audioUnlock(); return playAlert(); }
+  if (act === 'tvopen') { e.preventDefault(); if (b.classList.contains('disabled')) return; return openTV(b.href); }
   if (act === 'tvcopy') {
     const sym = ($('#' + b.dataset.pre + '-tvlink').dataset.sym || '');
     if (!sym) return toast('Сначала укажите тикер');
@@ -2439,7 +2457,8 @@ $('#v-settings').addEventListener('change', async e => {
   if (el.id === 'uiColor') { S.ui = { ...S.ui, theme: 'custom', color: el.value }; applyTheme(); }
   if (el.dataset.a) { const k = el.dataset.a, v = el.value; S.alerts = { ...S.alerts, [k]: ['on', 'vibrate', 'wake'].includes(k) ? v === 'on' : ['volume', 'repeat'].includes(k) ? +v : v }; PX.sig = ''; syncWatch(); if (k === 'sound' || k === 'volume') { audioUnlock(); beep(S.alerts.sound, S.alerts.volume); } }
   if (el.dataset.emo) S.emoji = { ...(S.emoji || {}), [el.dataset.emo]: el.value.trim() };
-  if ('tvl' in el.dataset) S.tvLayout = el.value.trim();
+  if ('tvl' in el.dataset) { S.tvLayout = el.value.trim(); setTimeout(renderSettings, 0); }
+  if ('tvo' in el.dataset) S.tvOpen = el.value;
   if (el.dataset.list) S[el.dataset.list] = el.value.split('\n').map(x => x.trim()).filter(Boolean);
   S.updated = Date.now();
   await saveSettings(); toast('Сохранено');

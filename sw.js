@@ -2,7 +2,7 @@
 // Приложение всегда открывается из памяти телефона — мгновенно и без интернета.
 // Обновления скачиваются в фоне и применяются при следующем запуске.
 // При выпуске новой версии увеличьте номер VERSION.
-const VERSION = 'v11';
+const VERSION = 'v12';
 const CACHE = 'trade-journal-' + VERSION;
 const SHELL = ['./index.html', './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 const TIMEOUT = 6000; // не ждём сеть дольше 6 секунд
