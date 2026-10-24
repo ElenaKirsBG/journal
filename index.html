@@ -226,7 +226,8 @@ html.glass input[type="range"]{background:none;backdrop-filter:none;-webkit-back
 .addrow{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 28px;gap:6px;align-items:center}
 .addrow input{padding:9px 8px}
 .tvrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.tvrow .btn{flex:1 1 140px;text-align:center;text-decoration:none}
+.tvdesc{margin:6px 0 0;font-size:.85em}
+.tvrow .btn{flex:1 1 100px;text-align:center;text-decoration:none}
 .tvrow .btn.disabled{opacity:.45;pointer-events:none}
 .tvbox{height:430px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--surface2)}
 details.ck-wrap{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
@@ -323,7 +324,9 @@ input[type="range"]{padding:0;border:0;background:none;height:30px;-webkit-appea
           <label class="fld"><span>Вход: дата и время</span><input type="datetime-local" id="f-entryAt"><small id="wd-entry"></small></label>
           <label class="fld"><span>Таймфрейм</span><select id="f-tf"></select></label>
         </div>
-        <div class="tvrow"><a class="btn soft small" id="f-tvlink" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener">Открыть в TradingView</a><button type="button" class="btn soft small tv-live" data-box="f-tvbox">Живой график</button></div>
+        <div class="fld" data-only="crypto"><span class="lbl">Биржа</span><div class="chips" id="c-ex"></div></div>
+        <div class="tvrow"><a class="btn soft small" id="f-tvlink" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener">Открыть в TradingView</a><button type="button" class="btn soft small" data-act="tvcopy" data-pre="f">Копировать тикер</button><button type="button" class="btn soft small tv-live" data-box="f-tvbox">Живой график</button></div>
+        <p class="note tvdesc" id="f-tvdesc"></p>
         <label class="fld"><span>Тикер в TradingView</span><input id="f-tv" autocapitalize="characters" spellcheck="false" placeholder="авто"><small id="f-tvhint">Если график открылся не тот — впишите тикер как в TradingView, например BINANCE:BTCUSDT.P</small></label>
         <div class="tvbox" id="f-tvbox" hidden></div>
       </div>
@@ -438,7 +441,9 @@ input[type="range"]{padding:0;border:0;background:none;height:30px;-webkit-appea
           <label class="fld"><span>Дата прогноза</span><input type="datetime-local" id="i-at"><small id="wd-idea"></small></label>
           <label class="fld"><span>Рабочий ТФ</span><select id="i-tf"></select></label>
         </div>
-        <div class="tvrow"><a class="btn soft small" id="i-tvlink" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener">Открыть в TradingView</a><button type="button" class="btn soft small tv-live" data-box="i-tvbox">Живой график</button></div>
+        <div class="fld" data-ionly="crypto"><span class="lbl">Биржа</span><div class="chips" id="i-ex"></div></div>
+        <div class="tvrow"><a class="btn soft small" id="i-tvlink" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener">Открыть в TradingView</a><button type="button" class="btn soft small" data-act="tvcopy" data-pre="i">Копировать тикер</button><button type="button" class="btn soft small tv-live" data-box="i-tvbox">Живой график</button></div>
+        <p class="note tvdesc" id="i-tvdesc"></p>
         <label class="fld"><span>Тикер в TradingView</span><input id="i-tv" autocapitalize="characters" spellcheck="false" placeholder="авто"><small id="i-tvhint">Если график открылся не тот — впишите тикер как в TradingView, например BINANCE:BTCUSDT.P</small></label>
         <div class="tvbox" id="i-tvbox" hidden></div>
         <div class="fld"><span class="lbl">Статус</span>
@@ -541,7 +546,7 @@ const WDS = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
 const DEFAULTS = {
   v: 1,
   markets: {
-    crypto: { deposit: 1000, cur: 'USDT', feePct: 0.05, mmr: 0.5, lev: 10, entryPct: 10, riskPct: 1, dailyRisk: 3, base: 'current', tvEx: 'BYBIT', tvSfx: '.P' },
+    crypto: { deposit: 1000, cur: 'USDT', feePct: 0.05, mmr: 0.5, lev: 10, entryPct: 10, riskPct: 1, dailyRisk: 3, base: 'current', tvEx: 'BYBIT', tvSfx: '.P', exch: 'Bybit' },
     stocks: { deposit: 10000, cur: '$', feePct: 0.05, entryPct: 20, riskPct: 1, dailyRisk: 3, base: 'current', tvEx: '', tvSfx: '' },
     moex:   { deposit: 300000, cur: '₽', feeRub: 2, entryPct: 20, riskPct: 1, dailyRisk: 3, base: 'current', tvEx: 'MOEX', tvSfx: '' }
   },
@@ -552,6 +557,7 @@ const DEFAULTS = {
   mistakes: ['Вход без сетапа','Без стопа','Сдвинула стоп','Рано закрыла','Пересидела убыток','Завышенный объём','Отыгрыш','Против тренда','Не по плану'],
   specs: { 'SI': { step: '1', stepCost: '1', go: '' }, 'BR': { step: '0.01', stepCost: '', go: '' }, 'RI': { step: '10', stepCost: '', go: '' } },
   lots: {},
+  exchanges: ['Bybit', 'Binance', 'OKX', 'Bitget', 'BingX', 'Gate', 'MEXC', 'KuCoin', 'HTX', 'BitMEX', 'Deribit', 'Phemex', 'WhiteBIT', 'CoinEx', 'Crypto.com', 'Coinbase', 'Kraken', 'Bitfinex', 'Bitstamp'],
   exitReasons: ['По тейку', 'По стопу', 'Безубыток', 'Вручную', 'По трейлингу', 'Ликвидация'],
   emoji: { win: '😊', loss: '😔', be: '😐' },
   ui: { theme: 'neutral', color: '#2f5bd3', mode: 'auto', font: 1 },
@@ -564,6 +570,14 @@ const HER = {
   mistakes: ['Ранний вход (FOMO / до подтверждения)', 'Поздний вход (догоняла уходящий поезд)', 'Передвинула стоп-лосс (увеличила риск)', 'Усреднение убыточной позиции', 'Нарушение первоначального риска', 'Вход вне плана / тильт', 'Рано зафиксировала прибыль', 'Биржа не дала поставить планируемый стоп', 'Вход померещился'],
   emotions: ['Спешка и невнимательность']
 };
+/* биржи: название → префикс тикера в TradingView; свой вариант — «Название (ПРЕФИКС)» */
+const EX_TV = { bybit: 'BYBIT', binance: 'BINANCE', okx: 'OKX', bitget: 'BITGET', bingx: 'BINGX', gate: 'GATEIO', 'gate.io': 'GATEIO', mexc: 'MEXC', kucoin: 'KUCOIN', htx: 'HTX', huobi: 'HTX', bitmex: 'BITMEX', deribit: 'DERIBIT', phemex: 'PHEMEX', whitebit: 'WHITEBIT', coinex: 'COINEX', 'crypto.com': 'CRYPTOCOM', coinbase: 'COINBASE', kraken: 'KRAKEN', bitfinex: 'BITFINEX', bitstamp: 'BITSTAMP', bitunix: 'BITUNIX', bitmart: 'BITMART', poloniex: 'POLONIEX', upbit: 'UPBIT', bithumb: 'BITHUMB' };
+const exName = x => String(x || '').replace(/\(.*\)/, '').trim();
+function exPrefix(x) {
+  const m = String(x || '').match(/\(([^)]+)\)/); if (m) return m[1].trim().toUpperCase();
+  const n = exName(x); return EX_TV[n.toLowerCase()] || n.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+const exOfPrefix = pfx => (S.exchanges || []).find(x => exPrefix(x) === pfx) || '';
 for (const k of Object.keys(HER)) if (k !== 'setups') DEFAULTS[k] = [...new Set([...DEFAULTS[k], ...HER[k]])];
 const EMOJI_SETS = [['😊', '😔', '😐'], ['🚀', '🩸', '➖'], ['✅', '❌', '⚪'], ['💰', '💸', '🤝'], ['🟢', '🔴', '⚪'], ['👍', '👎', '👌'], ['🤑', '😭', '😶'], ['🔥', '🧊', '💤']];
 /* чек-лист перед входом — из её журнала (100 баллов) */
@@ -858,6 +872,7 @@ function openForm(t, dup, pre) {
   ['conf', 'fear', 'focus'].forEach(k => $('#f-' + k).value = d[k] || 0);
   $('#takes').innerHTML = ''; (d.takes && d.takes.length ? d.takes : [{}]).slice(0, 5).forEach(x => $('#takes').appendChild(takeRow(x))); renumberTakes();
   chipsRender('c-setup', S.setups, d.setup, false);
+  chipsRender('c-ex', S.exchanges || [], d.exchange || (isNew && d.market === 'crypto' ? S.markets.crypto.exch : ''), false);
   chipsRender('c-emo', S.emotions, d.emotions, true);
   chipsRender('c-mis', S.mistakes, d.mistakes, true);
   $('#delBtn').hidden = isNew; $('#dupBtn').hidden = isNew; resetDel();
@@ -885,7 +900,7 @@ function readForm() {
   t.exitReason = chipsGet('c-exit')[0] || '';
   t.check = readCheck('f-check');
   ['conf', 'fear', 'focus'].forEach(k => t[k] = +$('#f-' + k).value || 0);
-  if (t.market === 'crypto') t.lev = $('#f-lev').value.trim();
+  if (t.market === 'crypto') { t.lev = $('#f-lev').value.trim(); t.exchange = chipsGet('c-ex')[0] || ''; }
   if (t.market === 'stocks') t.lot = $('#f-lot').value.trim();
   if (t.market === 'moex') { t.step = $('#f-step').value.trim(); t.stepCost = $('#f-stepCost').value.trim(); t.go = $('#f-go').value.trim(); }
   t.dep = prev && prev.dep ? prev.dep : balance(t.market, t.id);
@@ -1109,6 +1124,7 @@ function renderStats() {
     table('По классу сделки (чек-лист)', groupBy(rows, x => checkClass(checkScore(x.t.check)) || null), (a, b) => ['A+', 'A', 'B', 'C'].indexOf(a.k) - ['A+', 'A', 'B', 'C'].indexOf(b.k)) +
     table('По причине выхода', groupBy(rows, x => x.t.exitReason)) +
     table('По инструментам', groupBy(rows, x => x.t.symbol)) +
+    (rows.some(x => x.t.market === 'crypto' && x.t.exchange) ? table('По биржам (крипта)', groupBy(rows.filter(x => x.t.market === 'crypto'), x => exName(x.t.exchange) || 'не указана')) : '') +
     table('Лонг и шорт', groupBy(rows, x => x.t.dir === 'short' ? 'Шорт' : 'Лонг')) +
     table('По дню недели входа', groupBy(rows, x => isNaN(entryD(x)) ? null : WDS[entryD(x).getDay()]), (a, b) => wdOrder.indexOf(a.k) - wdOrder.indexOf(b.k)) +
     table('По часу входа', groupBy(rows, x => isNaN(entryD(x)) ? null : String(entryD(x).getHours()).padStart(2, '0') + ':00'), (a, b) => a.k.localeCompare(b.k)) +
@@ -1158,7 +1174,8 @@ function renderSettings() {
       ${m === 'crypto' ? `<div class="row2"><label class="fld"><span>Плечо по умолчанию</span><input inputmode="decimal" data-s="crypto.lev" value="${esc(s.lev)}"></label><label class="fld"><span>Поддерж. маржа, %</span><input inputmode="decimal" data-s="crypto.mmr" value="${esc(s.mmr)}"></label></div>` : ''}
       <div class="row2"><label class="fld"><span>Вход по умолчанию, % депо</span><input inputmode="decimal" data-s="${m}.entryPct" value="${esc(s.entryPct ?? 10)}"></label><label class="fld"><span>Стоп по умолчанию, % депо</span><input inputmode="decimal" data-s="${m}.riskPct" value="${esc(s.riskPct ?? 1)}"></label></div>
       <div class="row2"><label class="fld"><span>Объём считать от</span><select data-s="${m}.base"><option value="current" ${s.base !== 'start' ? 'selected' : ''}>текущего баланса</option><option value="start" ${s.base === 'start' ? 'selected' : ''}>стартового депозита</option></select></label><label class="fld"><span>Макс. риск в день, %</span><input inputmode="decimal" data-s="${m}.dailyRisk" value="${esc(s.dailyRisk ?? 3)}"></label></div>
-      <div class="row2"><label class="fld"><span>Биржа в TradingView</span><input data-s="${m}.tvEx" value="${esc(s.tvEx ?? '')}" placeholder="${m === 'crypto' ? 'BYBIT' : m === 'moex' ? 'MOEX' : 'авто'}" autocapitalize="characters"></label><label class="fld"><span>Окончание тикера</span><input data-s="${m}.tvSfx" value="${esc(s.tvSfx ?? '')}" placeholder="${m === 'crypto' ? '.P — фьючерс' : 'нет'}"></label></div>
+      ${m === 'crypto' ? `<div class="row2"><label class="fld"><span>Биржа по умолчанию</span><select data-s="crypto.exch">${(S.exchanges || []).map(x => `<option value="${esc(x)}" ${x === s.exch ? 'selected' : ''}>${esc(exName(x))} · ${esc(exPrefix(x))}</option>`).join('')}</select></label><label class="fld"><span>Окончание тикера</span><input data-s="crypto.tvSfx" value="${esc(s.tvSfx ?? '')}" placeholder=".P — фьючерс"></label></div>` : ''}
+      <div class="row2" ${m === 'crypto' ? 'hidden' : ''}><label class="fld"><span>Биржа в TradingView</span><input data-s="${m}.tvEx" value="${esc(s.tvEx ?? '')}" placeholder="${m === 'crypto' ? 'BYBIT' : m === 'moex' ? 'MOEX' : 'авто'}" autocapitalize="characters"></label><label class="fld"><span>Окончание тикера</span><input data-s="${m}.tvSfx" value="${esc(s.tvSfx ?? '')}" placeholder="${m === 'crypto' ? '.P — фьючерс' : 'нет'}"></label></div>
       <p class="note">Текущий баланс: <b class="num">${fmtN(balance(m), 2)} ${esc(s.cur)}</b></p></div>`;
   };
   const list = (key, title) => `<label class="fld"><span>${title} — по одному в строке</span><textarea data-list="${key}">${esc(S[key].join('\n'))}</textarea></label>`;
@@ -1178,7 +1195,9 @@ function renderSettings() {
     ${Object.keys(MARKETS).map(mk).join('')}
     ${specs ? `<div class="card"><div class="mk-head">Запомненные фьючерсы ММВБ</div><p class="note num">${specs}</p><p class="note">Параметры подставляются автоматически, когда вы вводите тикер. Обновляются при сохранении сделки.</p></div>` : ''}
     <h3 class="sec">Списки</h3>
-    <div class="card">${list('setups', 'Сетапы')}${list('tfs', 'Таймфреймы')}${list('emotions', 'Эмоции')}${list('mistakes', 'Ошибки')}${list('exitReasons', 'Причины выхода')}</div>
+    <div class="card">${list('setups', 'Сетапы')}${list('tfs', 'Таймфреймы')}${list('emotions', 'Эмоции')}${list('mistakes', 'Ошибки')}${list('exitReasons', 'Причины выхода')}${list('exchanges', 'Криптобиржи')}<p class="note">Своя биржа: допишите строку, например <b>Bitunix</b>. Если TradingView называет её иначе — укажите его название в скобках: <b>Gate (GATEIO)</b>.</p></div>
+    <h3 class="sec">TradingView</h3>
+    <div class="card"><label class="fld"><span>Ссылка на ваш график (с вашими индикаторами)</span><input data-tvl value="${esc(S.tvLayout || '')}" placeholder="https://www.tradingview.com/chart/AbCdEfGh/" autocapitalize="off" spellcheck="false"></label><p class="note">${tvLayout() ? 'Кнопка «Открыть в TradingView» откроет ваш график <b>' + esc(tvLayout()) + '</b> с нужным тикером.' : 'Откройте TradingView на компьютере или в Safari, откройте свой график с индикаторами и скопируйте адрес из строки браузера (вид …/chart/AbCdEfGh/). Без этой ссылки TradingView открывает пустой график по умолчанию.'}</p></div>
     <h3 class="sec">Смайлы для результата</h3>
     <div class="card"><p class="note">Ставятся автоматически: прибыль, убыток или безубыток (результат меньше 0,1R по модулю).</p>
       <div class="chips">${EMOJI_SETS.map((e, i) => `<button type="button" class="chip" data-eset="${i}" aria-pressed="${!!S.emoji && e[0] === S.emoji.win && e[1] === S.emoji.loss && e[2] === S.emoji.be}">${e.join(' ')}</button>`).join('')}<button type="button" class="chip" data-eset="off" aria-pressed="${!S.emoji || !(S.emoji.win || S.emoji.loss || S.emoji.be)}">Без смайлов</button></div>
@@ -1424,6 +1443,8 @@ function mergeSettings(s) {
     out.setups = [...new Set([...d.setups, ...(out.setups || []).filter(x => !OLD.includes(x))])];
   }
   out.mig3 = true;
+  if (!out.exchanges || !out.exchanges.length) out.exchanges = d.exchanges.slice();
+  if (!(s.markets && s.markets.crypto && s.markets.crypto.exch)) { const pf = String(out.markets.crypto.tvEx || 'BYBIT').toUpperCase(); out.markets.crypto.exch = out.exchanges.find(x => exPrefix(x) === pf) || pf; }
   for (const k of ['ui', 'alerts', 'backup', 'emoji']) out[k] = { ...d[k], ...(s[k] || {}) };
   return out;
 }
@@ -1632,7 +1653,7 @@ function priceSrc(i) {
   if (i.market === 'moex') { const code = rest.replace(/\d!$/, ''); return { key: 'moex:' + code, src: 'moex', sym: code, label: 'ММВБ (задержка до 15 мин)' }; }
   const perp = rest.endsWith('.P'), sym = rest.replace(/\.P$/, '');
   if (ex === 'BINANCE') return perp ? { key: 'bnf:' + sym, src: 'bnf', sym, label: 'Binance Futures' } : { key: 'bns:' + sym, src: 'bns', sym, label: 'Binance' };
-  return (perp || ex !== 'BYBIT') ? { key: 'byl:' + sym, src: 'byl', sym, label: 'Bybit' } : { key: 'bys:' + sym, src: 'bys', sym, label: 'Bybit Spot' };
+  return (perp || ex !== 'BYBIT') ? { key: 'byl:' + sym, src: 'byl', sym, label: ex && ex !== 'BYBIT' ? 'Bybit (живой цены ' + (exName(exOfPrefix(ex)) || ex) + ' нет — цена близкая)' : 'Bybit' } : { key: 'bys:' + sym, src: 'bys', sym, label: 'Bybit Spot' };
 }
 function watchedIdeas() {
   return IDEAS.filter(i => (i.status === 'wait' || i.status === 'entered') && priceSrc(i) && (i.alerts || []).length);
@@ -1724,14 +1745,27 @@ function tvSymbol(t) {
   if (t.market === 'moex' && !/\d/.test(s) && !s.endsWith('!')) s += '1!';
   const sfx = mk.tvSfx || '';
   if (sfx && !s.endsWith(sfx) && !s.endsWith('!')) s += sfx;
-  return (mk.tvEx ? String(mk.tvEx).trim().toUpperCase() + ':' : '') + s;
+  let ex = mk.tvEx ? String(mk.tvEx).trim().toUpperCase() : '';
+  if (t.market === 'crypto') { const e = t.exchange || mk.exch; if (e) ex = exPrefix(e); }
+  return (ex ? ex + ':' : '') + s;
+}
+function tvLayout() { const m = String(S.tvLayout || '').match(/chart\/([A-Za-z0-9]{6,})/); return m ? m[1] : ''; }
+function tvDescribe(sym, t) {
+  if (!sym) return '';
+  const [ex, rest] = sym.includes(':') ? sym.split(':') : ['', sym];
+  const name = t.market === 'crypto' ? (exName(t.exchange || exOfPrefix(ex)) || ex) : ex;
+  const kind = t.market !== 'crypto' ? '' : rest.endsWith('.P') ? 'бессрочный фьючерс' : /\d{6}$/.test(rest) ? 'срочный фьючерс' : 'спот';
+  return `Откроется: <b>${esc(sym)}</b>${name ? ' — биржа ' + esc(name) : ' — биржа не указана, TradingView выберет сам'}${kind ? ', ' + kind : ''}`;
 }
 const TV_IV = { '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30', '1h': '60', '2h': '120', '4h': '240', '1D': 'D', '1W': 'W', 'M1': '1', 'M5': '5', 'M15': '15', 'M30': '30', 'H1': '60', 'Н1': '60', 'H4': '240', 'D': 'D', 'D1': 'D', 'W': 'W', 'W1': 'W' };
 const tvInterval = tf => TV_IV[tf] || '60';
 function updateTV(pre, t) {
   const sym = tvSymbol(t), a = $('#' + pre + '-tvlink');
-  a.href = 'https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(sym) + '&interval=' + tvInterval(t.tf);
+  const lay = tvLayout();
+  a.href = 'https://www.tradingview.com/chart/' + (lay ? lay + '/' : '') + '?symbol=' + encodeURIComponent(sym) + '&interval=' + tvInterval(t.tf);
   a.classList.toggle('disabled', !sym);
+  a.dataset.sym = sym;
+  const ds = $('#' + pre + '-tvdesc'); if (ds) ds.innerHTML = tvDescribe(sym, t) + (sym && !lay ? '<br>Чтобы график открывался с вашими индикаторами — вставьте ссылку на свой график в «Настройки» → «TradingView».' : '');
   $('#' + pre + '-tv').placeholder = sym ? 'авто: ' + sym : 'авто';
 }
 function mountTV(box, sym, iv) {
@@ -2100,6 +2134,7 @@ function openIdea(i) {
   $('#i-tf').innerHTML = '<option value="">—</option>' + S.tfs.map(x => `<option ${x === d.tf ? 'selected' : ''}>${esc(x)}</option>`).join('') + (d.tf && !S.tfs.includes(d.tf) ? `<option selected>${esc(d.tf)}</option>` : '');
   $('#itakes').innerHTML = ''; (d.takes && d.takes.length ? d.takes : [{}]).slice(0, 5).forEach(x => $('#itakes').appendChild(iTakeRow(x.price ?? ''))); renumberITakes();
   chipsRender('i-setup', S.setups, d.setup, false);
+  chipsRender('i-ex', S.exchanges || [], d.exchange || (!i ? S.markets.crypto.exch : ''), false);
   $('#delIdea').hidden = !i; resetDelIdea();
   $('#toTrade').textContent = d.tradeId && TR.some(t => t.id === d.tradeId) ? 'Перейти к сделке' : 'Открыть сделку по прогнозу';
   $('#symList').innerHTML = [...new Set([...TR, ...IDEAS].map(x => x.symbol).filter(Boolean))].map(s => `<option value="${esc(s)}">`).join('');
@@ -2119,7 +2154,7 @@ function readIdea() {
     graphs: UI.igraphs,
     lev: $('#i-lev').value.trim(), go: $('#i-go').value.trim(), step: $('#i-step').value.trim(), stepCost: $('#i-stepCost').value.trim(), lot: $('#i-lot').value.trim(),
     planEp: $('#i-entryPct').value.trim(), planRp: $('#i-riskPct').value.trim(), planBase: segGet('i-base') || 'current',
-    tv: $('#i-tv').value.trim(), check: readCheck('i-check'), moveR: $('#i-moveR').value.trim(),
+    tv: $('#i-tv').value.trim(), exchange: segGet('iMarket') === 'crypto' ? (chipsGet('i-ex')[0] || '') : '', check: readCheck('i-check'), moveR: $('#i-moveR').value.trim(),
     alerts: $$('#i-alerts .chip[aria-pressed="true"]').map(c => c.dataset.al), fired: prev && prev.fired ? prev.fired : {},
     archived: !!UI.iArchived, review: $$('#i-review .chip[aria-pressed="true"]').map(c => c.dataset.rv), mistakes: chipsGet('i-mis')
   };
@@ -2280,7 +2315,7 @@ document.addEventListener('click', async e => {
       market: i.market, dir: i.dir, symbol: i.symbol, entry: i.entry, stop: i.stop, status: 'open',
       tf: i.tf || (main ? main.tf : ''), setup: i.setup, notes: i.why, shot: main ? main.img : null,
       emotions: [], mistakes: [], ideaId: i.id,
-      tv: i.tv, check: i.check, planBase: i.planBase,
+      tv: i.tv, exchange: i.exchange, check: i.check, planBase: i.planBase,
       lev: i.lev, go: i.go, step: i.step, stepCost: i.stepCost, lot: i.lot, planEp: i.planEp, planRp: i.planRp,
       qty: (() => { const r = planFor(i, 'i'); return r.qty > 0 ? String(r.qty) : ''; })(),
       takes: n ? tps.map((x, k) => ({ price: x.price, pct: String(k === n - 1 ? 100 - p * (n - 1) : p), hit: false })) : [{}]
@@ -2304,7 +2339,10 @@ document.addEventListener('click', async e => {
   if (b.classList.contains('chip') && b.closest('#v-form, #v-idea')) {
     const box = b.parentElement; const on = b.getAttribute('aria-pressed') !== 'true';
     if (!box.dataset.multi) $$('.chip', box).forEach(c => c.setAttribute('aria-pressed', 'false'));
-    b.setAttribute('aria-pressed', String(on)); return;
+    b.setAttribute('aria-pressed', String(on));
+    if (box.id === 'c-ex') updateCalc();
+    if (box.id === 'i-ex') { updateIdeaCalc(); syncWatch(); }
+    return;
   }
   if (b.classList.contains('tk-hit')) { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); return updateCalc(); }
   if (b.classList.contains('tk-del')) { b.closest('.take').remove(); if (!$$('#takes .take').length) $('#takes').appendChild(takeRow()); renumberTakes(); return updateCalc(); }
@@ -2340,6 +2378,13 @@ document.addEventListener('click', async e => {
   if (act === 'ocrclose') { $('#i-ocr').hidden = true; $('#i-ocr').innerHTML = ''; UI.shotURL = null; return; }
   if (act === 'ocrapply') return applyShot();
   if (act === 'testsound') { audioUnlock(); return playAlert(); }
+  if (act === 'tvcopy') {
+    const sym = ($('#' + b.dataset.pre + '-tvlink').dataset.sym || '');
+    if (!sym) return toast('Сначала укажите тикер');
+    try { await navigator.clipboard.writeText(sym); toast('Скопировано: ' + sym + ' — вставьте в поиск TradingView'); }
+    catch (e) { const ta = document.createElement('textarea'); ta.value = sym; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('Скопировано: ' + sym); } catch (e2) { toast(sym); } ta.remove(); }
+    return;
+  }
   if (act === 'xlsx') return exportXLSX();
   if (act === 'rmshot') { UI.shot = null; return renderShot(); }
   if (act === 'zoom') { $('#viewer img').src = b.getAttribute('src'); $('#viewer').hidden = false; return; }
@@ -2386,7 +2431,7 @@ $('#v-settings').addEventListener('change', async e => {
   const el = e.target;
   if (el.id === 'importFile') { if (el.files[0]) await importJSON(el.files[0]); return; }
   if (el.dataset.s) {
-    const path = el.dataset.s.split('.'); const isText = ['cur', 'base', 'tvEx', 'tvSfx'].includes(path[1]);
+    const path = el.dataset.s.split('.'); const isText = ['cur', 'base', 'tvEx', 'tvSfx', 'exch'].includes(path[1]);
     const v = isText ? el.value.trim() : num(el.value);
     if (!isText && !ok(v)) { toast('Введите число'); return renderSettings(); }
     if (path.length === 1) S[path[0]] = v; else S.markets[path[0]][path[1]] = v;
@@ -2394,6 +2439,7 @@ $('#v-settings').addEventListener('change', async e => {
   if (el.id === 'uiColor') { S.ui = { ...S.ui, theme: 'custom', color: el.value }; applyTheme(); }
   if (el.dataset.a) { const k = el.dataset.a, v = el.value; S.alerts = { ...S.alerts, [k]: ['on', 'vibrate', 'wake'].includes(k) ? v === 'on' : ['volume', 'repeat'].includes(k) ? +v : v }; PX.sig = ''; syncWatch(); if (k === 'sound' || k === 'volume') { audioUnlock(); beep(S.alerts.sound, S.alerts.volume); } }
   if (el.dataset.emo) S.emoji = { ...(S.emoji || {}), [el.dataset.emo]: el.value.trim() };
+  if ('tvl' in el.dataset) S.tvLayout = el.value.trim();
   if (el.dataset.list) S[el.dataset.list] = el.value.split('\n').map(x => x.trim()).filter(Boolean);
   S.updated = Date.now();
   await saveSettings(); toast('Сохранено');
