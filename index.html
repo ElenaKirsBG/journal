@@ -1196,11 +1196,11 @@ function renderSettings() {
         <label class="fld"><span>Повторить</span><select data-a="repeat">${[1, 3, 5, 10].map(n => `<option value="${n}" ${+S.alerts.repeat === n ? 'selected' : ''}>${n} раз</option>`).join('')}</select></label>
       </div>
       <div class="row2">
-        <label class="fld"><span>Вибрация (Android)</span><select data-a="vibrate"><option value="on" ${S.alerts.vibrate ? 'selected' : ''}>Да</option><option value="off" ${!S.alerts.vibrate ? 'selected' : ''}>Нет</option></select></label>
+        <label class="fld"><span>Вибрация</span><select data-a="vibrate"><option value="on" ${S.alerts.vibrate ? 'selected' : ''}>Да</option><option value="off" ${!S.alerts.vibrate ? 'selected' : ''}>Нет</option></select></label>
         <label class="fld"><span>Не гасить экран</span><select data-a="wake"><option value="off" ${!S.alerts.wake ? 'selected' : ''}>Нет</option><option value="on" ${S.alerts.wake ? 'selected' : ''}>Пока идёт слежение</option></select></label>
       </div>
       <button type="button" class="btn soft" data-act="testsound">Проверить звук</button>
-      <p class="note">Сейчас отслеживается прогнозов: ${watchedIdeas().length}. Сигнал звучит, пока журнал открыт на экране: телефон не даёт веб-приложениям работать в фоне. Чтобы не пропустить вход, когда журнал закрыт, поставьте такое же оповещение в TradingView. Если звука нет — выключите беззвучный режим и прибавьте громкость.</p>
+      <p class="note">Сейчас отслеживается прогнозов: ${watchedIdeas().length}. Сигнал звучит, пока журнал открыт на экране: телефон не даёт веб-приложениям работать в фоне. Чтобы не пропустить вход, когда журнал закрыт, поставьте такое же оповещение в TradingView. Если звука нет — пока журнал открыт, прибавьте громкость кнопками сбоку: сигнал идёт по громкости мультимедиа (как у видео), а не звонка. Вибрация на iPhone — короткий системный тактильный отклик (iOS 18 и новее), на Android — полноценная.</p>
     </div>
     <h3 class="sec">Резервные копии</h3>
     <div class="card">
@@ -1525,31 +1525,98 @@ async function replaceAll(data) {
   if (data.settings && data.settings.markets) { S = mergeSettings(data.settings); await saveSettings(); applyTheme(); }
 }
 
-/* ---------- звуковые сигналы по уровням прогнозов ---------- */
-let AC = null;
+/* ---------- звуковые сигналы по уровням прогнозов ----------
+   iPhone: звук играет через <audio> с готовым WAV (так он не зависит от
+   беззвучного режима и не «засыпает» после сворачивания), WebAudio — запасной путь. */
+let AC = null, AUD = null, AUD_OK = false;
+const SR = 22050, WAVS = {};
+function wavURL(samples) {
+  const n = samples.length, b = new ArrayBuffer(44 + n * 2), d = new DataView(b);
+  const w = (o, t) => { for (let i = 0; i < t.length; i++) d.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, 'RIFF'); d.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); d.setUint32(16, 16, true);
+  d.setUint16(20, 1, true); d.setUint16(22, 1, true); d.setUint32(24, SR, true); d.setUint32(28, SR * 2, true);
+  d.setUint16(32, 2, true); d.setUint16(34, 16, true); w(36, 'data'); d.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) d.setInt16(44 + i * 2, Math.max(-1, Math.min(1, samples[i])) * 32767, true);
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+}
+const SND_P = { bell: [[880, 0, .5, 'sine'], [1320, .12, .6, 'sine']], siren: [[650, 0, .22, 'sawtooth'], [980, .22, .22, 'sawtooth'], [650, .44, .22, 'sawtooth'], [980, .66, .22, 'sawtooth']], beep: [[1040, 0, .12, 'square'], [1040, .2, .12, 'square']], chime: [[660, 0, .25, 'triangle'], [880, .2, .25, 'triangle'], [1100, .4, .45, 'triangle']] };
+function osc(type, ph) {
+  const x = ph % 1;
+  if (type === 'square') return x < .5 ? 1 : -1;
+  if (type === 'sawtooth') return 2 * x - 1;
+  if (type === 'triangle') return 1 - 4 * Math.abs(x - .5);
+  return Math.sin(2 * Math.PI * x);
+}
+function soundWav(kind, vol, rep) {
+  const key = kind + '|' + vol + '|' + rep; if (WAVS[key]) return WAVS[key];
+  const P = SND_P[kind] || SND_P.bell, v = Math.max(.05, Math.min(1, vol || .8)), gap = 1.2;
+  const out = new Float32Array(Math.ceil(SR * ((rep - 1) * gap + 1.3)));
+  for (let r = 0; r < rep; r++) for (const [f, st, dur, type] of P) {
+    const peak = v * (type === 'sine' || type === 'triangle' ? .9 : .4), s0 = Math.floor(SR * (r * gap + st)), len = Math.floor(SR * dur);
+    for (let i = 0; i < len && s0 + i < out.length; i++) {
+      const t = i / SR, env = t < .02 ? t / .02 : Math.exp(-6 * (t - .02) / dur);
+      out[s0 + i] += osc(type, f * t) * peak * env;
+    }
+  }
+  return (WAVS[key] = wavURL(out));
+}
 function audioUnlock() {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
   try {
-    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    if (!AUD) { AUD = new Audio(); AUD.setAttribute('playsinline', ''); AUD.preload = 'auto'; }
+    if (!AUD_OK) {
+      AUD.src = wavURL(new Float32Array(SR / 10)); AUD.muted = false;
+      const p = AUD.play(); if (p && p.then) p.then(() => { AUD_OK = true; }).catch(() => {}); else AUD_OK = true;
+    }
+  } catch (e) {}
+  try {
     if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
-    if (AC.state === 'suspended') AC.resume();
+    if (AC.state !== 'running') AC.resume().catch(() => {});
   } catch (e) {}
 }
-document.addEventListener('pointerdown', audioUnlock, { capture: true });
+// iOS считает «жестом» только touchend/click — pointerdown/touchstart звук не разблокируют
+['touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, audioUnlock, { capture: true, passive: true }));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && AC && AC.state !== 'running') AC.resume().catch(() => {}); });
 const SOUNDS = { bell: 'Колокольчик', siren: 'Сирена', beep: 'Короткий сигнал', chime: 'Мелодия' };
-function beep(kind, vol) {
+function beepWA(kind, vol) {
   if (!AC) return;
-  const t0 = AC.currentTime + .02, v = Math.max(.05, Math.min(1, vol || .8));
-  const P = { bell: [[880, 0, .5, 'sine'], [1320, .12, .6, 'sine']], siren: [[650, 0, .22, 'sawtooth'], [980, .22, .22, 'sawtooth'], [650, .44, .22, 'sawtooth'], [980, .66, .22, 'sawtooth']], beep: [[1040, 0, .12, 'square'], [1040, .2, .12, 'square']], chime: [[660, 0, .25, 'triangle'], [880, .2, .25, 'triangle'], [1100, .4, .45, 'triangle']] }[kind] || [];
-  for (const [f, st, d, type] of P) {
+  if (AC.state !== 'running') AC.resume().catch(() => {});
+  const t0 = AC.currentTime + .03, v = Math.max(.05, Math.min(1, vol || .8));
+  for (const [f, st, d, type] of SND_P[kind] || []) {
     const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f;
     g.gain.setValueAtTime(.0001, t0 + st); g.gain.exponentialRampToValueAtTime(v * (type === 'sine' || type === 'triangle' ? .9 : .35), t0 + st + .02); g.gain.exponentialRampToValueAtTime(.0001, t0 + st + d);
     o.connect(g); g.connect(AC.destination); o.start(t0 + st); o.stop(t0 + st + d + .05);
   }
 }
+function playSound(kind, vol, rep) {
+  rep = Math.max(1, +rep || 1);
+  try {
+    if (!AUD) { AUD = new Audio(); AUD.setAttribute('playsinline', ''); }
+    AUD.src = soundWav(kind, vol, rep); AUD.currentTime = 0;
+    const p = AUD.play();
+    if (p && p.catch) p.catch(() => { for (let n = 0; n < rep; n++) setTimeout(() => beepWA(kind, vol), n * 1200); });
+  } catch (e) { for (let n = 0; n < rep; n++) setTimeout(() => beepWA(kind, vol), n * 1200); }
+}
+const beep = (kind, vol) => playSound(kind, vol, 1);
+/* вибрация: Android — Vibration API; iPhone (iOS 18+) — системный тактильный отклик
+   через переключатель <input switch>, другого способа у веб-приложений на iPhone нет */
+let HAPT = null;
+function haptic(times) {
+  if (navigator.vibrate) { try { navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {} return; }
+  try {
+    if (!HAPT) {
+      HAPT = document.createElement('label'); HAPT.setAttribute('aria-hidden', 'true');
+      HAPT.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden';
+      const c = document.createElement('input'); c.type = 'checkbox'; c.setAttribute('switch', ''); c.tabIndex = -1;
+      HAPT.appendChild(c); document.body.appendChild(HAPT);
+    }
+    for (let n = 0; n < (times || 3); n++) setTimeout(() => HAPT.click(), n * 250);
+  } catch (e) {}
+}
 function playAlert() {
   const a = S.alerts || {}; audioUnlock();
-  for (let n = 0; n < (+a.repeat || 3); n++) setTimeout(() => beep(a.sound, +a.volume), n * 1200);
-  if (a.vibrate && navigator.vibrate) try { navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+  playSound(a.sound, +a.volume, +a.repeat || 3);
+  if (a.vibrate) haptic(3);
 }
 const PX = { last: {}, src: {}, prev: {}, ws: {}, moexTimer: null, sig: '', wake: null };
 function priceSrc(i) {
